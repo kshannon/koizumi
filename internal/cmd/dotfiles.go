@@ -28,12 +28,16 @@ The repo is --repo, else $DOTFILES, else ~/dev/dotfiles.`,
 }
 
 func init() {
-	def := os.Getenv("DOTFILES")
-	if def == "" {
-		home, _ := os.UserHomeDir()
-		def = home + "/dev/dotfiles"
+	dotfilesCmd.Flags().StringVar(&dotfilesRepo, "repo", defaultRepo(), "the dotfiles working tree")
+}
+
+// defaultRepo is $DOTFILES, else ~/dev/dotfiles. Shared by dotfiles, pull and push.
+func defaultRepo() string {
+	if def := os.Getenv("DOTFILES"); def != "" {
+		return def
 	}
-	dotfilesCmd.Flags().StringVar(&dotfilesRepo, "repo", def, "the dotfiles working tree")
+	home, _ := os.UserHomeDir()
+	return home + "/dev/dotfiles"
 }
 
 func runDotfiles(cmd *cobra.Command, args []string) error {

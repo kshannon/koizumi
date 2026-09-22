@@ -47,7 +47,7 @@ Each command's --help says exactly what it checks and how it decides.`,
 func init() {
 	root.PersistentFlags().BoolVar(&jsonOut, "json", false, "print machine-readable JSON instead of a report")
 	root.Flags().BoolVar(&cached, "cached", false, "show the last check instead of running one")
-	root.AddCommand(appsCmd, outdatedCmd, brewCmd, dotfilesCmd, checkCmd, motdCmd, setupCmd)
+	root.AddCommand(appsCmd, outdatedCmd, brewCmd, dotfilesCmd, pullCmd, pushCmd, checkCmd, motdCmd, setupCmd)
 }
 
 // Execute runs the CLI and exits non-zero on error.

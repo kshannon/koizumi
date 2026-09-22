@@ -11,20 +11,21 @@ koizumi looks at one machine and reports three things:
 - **Drift.** Whether the machine still matches the dotfiles repo: is everything the
   Brewfile lists installed, and do the files in your home folder match what the repo says.
 
-It only reports. It never installs, updates or changes anything. Where something needs
-doing, it prints the command to run.
+It never installs or updates software. Where something needs doing, it prints the command
+to run. The one thing it does do is move the dotfiles: `pull` fetches the repo and applies
+it (chezmoi asks before overwriting anything), `push` pushes what you have committed.
 
 ## Install
 
 You need Go 1.27 or newer (`brew install go`). Then:
 
 ```bash
+go env -w GOBIN="$HOME/.local/bin"        # once: install into a folder already on your PATH
 go install github.com/kshannon/koizumi@latest
 ```
 
-That puts the `koizumi` binary in `~/go/bin`. Make sure that folder is on your `PATH`.
-To update, run the same command again. A Homebrew tap will replace this once there is a
-tagged release.
+Skip the first line if `~/go/bin` is already on your `PATH`. To update, run the second line
+again. A Homebrew tap will replace this once there is a tagged release.
 
 ## Use
 
@@ -34,6 +35,8 @@ koizumi outdated      # what is behind: Homebrew, App Store, macOS, with the com
 koizumi dotfiles      # files in ~ vs the repo (chezmoi), and the repo vs its remote (git)
 koizumi brew          # Brewfile vs what is installed: missing and extra
 koizumi apps          # every app in /Applications and who updates it
+koizumi pull          # git pull --ff-only, then chezmoi apply (asks before overwriting)
+koizumi push          # git push; refuses if anything is uncommitted
 koizumi --json ...    # any command as data
 koizumi --help        # the full reference for every command
 ```
