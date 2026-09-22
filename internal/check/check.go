@@ -33,10 +33,12 @@ type Report struct {
 	Apps     Apps             `json:"apps"`
 }
 
-// Apps is the short form of the app scan: how many, and which have no known updater.
+// Apps is the short form of the app scan: how many, which have no known updater, and which
+// apps the shared overrides file names that this machine does not have.
 type Apps struct {
-	Total   int      `json:"total"`
-	Unknown []string `json:"unknown"`
+	Total        int      `json:"total"`
+	Unknown      []string `json:"unknown"`
+	NotInstalled []string `json:"not_installed"`
 }
 
 // Options say where to look.
@@ -51,7 +53,7 @@ type Options struct {
 // git or the network), so they run concurrently.
 func Run(o Options) Report {
 	host, _ := os.Hostname()
-	r := Report{When: time.Now(), Host: strings.TrimSuffix(host, ".local"), Apps: Apps{Unknown: []string{}}}
+	r := Report{When: time.Now(), Host: strings.TrimSuffix(host, ".local"), Apps: Apps{Unknown: []string{}, NotInstalled: []string{}}}
 	var wg sync.WaitGroup
 	wg.Add(4)
 	go func() { defer wg.Done(); r.Outdated = outdated.All().Probes }()
@@ -67,6 +69,9 @@ func Run(o Options) Report {
 				if a.Updater == apps.Unknown {
 					r.Apps.Unknown = append(r.Apps.Unknown, a.Name)
 				}
+			}
+			for _, m := range apps.NotInstalled(overrides, list) {
+				r.Apps.NotInstalled = append(r.Apps.NotInstalled, m.Name)
 			}
 		}
 	}()
@@ -182,8 +187,8 @@ func Sections(r Report) []Section {
 		hb.Lines = append(hb.Lines, "Brewfile: everything listed is installed")
 	case "drift":
 		d := r.Brewfile.Diff
-		hb.Lines = append(hb.Lines, fmt.Sprintf("Brewfile: %d missing, %d extra  ·  koizumi brew",
-			len(d.MissingFormulae)+len(d.MissingCasks)+len(d.MissingTaps), len(d.ExtraFormulae)+len(d.ExtraCasks)+len(d.ExtraTaps)))
+		hb.Lines = append(hb.Lines, fmt.Sprintf("Brewfile: %d missing, %d extra",
+			len(d.MissingFormulae)+len(d.MissingCasks)+len(d.MissingTaps), len(d.ExtraFormulae)+len(d.ExtraCasks)+len(d.ExtraTaps)), "→ koizumi brew")
 		hb.Level = worse(hb.Level, "warn")
 	case "error":
 		hb.Lines = append(hb.Lines, "Brewfile: "+r.Brewfile.Note)
@@ -199,31 +204,32 @@ func Sections(r Report) []Section {
 func updaterSection(p outdated.Probe, name, noun string) Section {
 	sec := Section{Name: name}
 	switch p.Status {
+	// Lines that start with "→ " are commands; the printer shows them as such. The rest are facts.
 	case "ok":
 		sec.Level, sec.Text = "ok", "current"
 		if p.Note != "" { // e.g. which koizumi commit is running, when macOS last checked
-			sec.Text += "  ·  " + p.Note
+			sec.Text += " (" + p.Note + ")"
 		}
 	case "outdated":
 		sec.Level = "warn"
 		sec.Text = fmt.Sprintf("%d %s: %s", len(p.Items), noun, names(p.Items, 3))
 		switch name {
 		case "Homebrew":
-			sec.Lines = append(sec.Lines, "brew upgrade")
+			sec.Lines = append(sec.Lines, "→ brew upgrade")
 		case "App Store":
-			sec.Lines = append(sec.Lines, "mas upgrade")
+			sec.Lines = append(sec.Lines, "→ mas upgrade")
 		case "koizumi": // one item, both sides named: what runs here and what main is
 			it := p.Items[0]
 			sec.Text = "behind: running " + it.Installed + ", main is " + it.Latest
-			sec.Lines = append(sec.Lines, it.Fix)
+			sec.Lines = append(sec.Lines, "→ "+it.Fix)
 			return sec
 		default:
 			if len(p.Items) > 0 {
-				sec.Lines = append(sec.Lines, p.Items[0].Fix)
+				sec.Lines = append(sec.Lines, "→ "+p.Items[0].Fix)
 			}
 		}
 		if p.Note != "" {
-			sec.Text += "  ·  " + p.Note
+			sec.Text += " (" + p.Note + ")"
 		}
 	case "skipped":
 		sec.Level, sec.Text = "skipped", "skipped: "+p.Note
@@ -244,7 +250,7 @@ func dotfilesSection(probes []dotfiles.Probe) Section {
 			parts = append(parts, "in sync with the repo")
 		case p.Source == "chezmoi" && p.Status == "drift":
 			parts = append(parts, p.Note)
-			sec.Level, sec.Lines = worse(sec.Level, "warn"), append(sec.Lines, p.Fix)
+			sec.Level, sec.Lines = worse(sec.Level, "warn"), append(sec.Lines, "→ "+p.Fix)
 		case p.Source == "git" && p.Status == "ok":
 			parts = append(parts, "repo in sync with GitHub")
 		case p.Source == "git" && p.Status == "drift":
@@ -259,7 +265,7 @@ func dotfilesSection(probes []dotfiles.Probe) Section {
 				g = append(g, fmt.Sprintf("%d to pull", p.Behind))
 			}
 			parts = append(parts, strings.Join(g, ", "))
-			sec.Level, sec.Lines = worse(sec.Level, "warn"), append(sec.Lines, p.Fix)
+			sec.Level, sec.Lines = worse(sec.Level, "warn"), append(sec.Lines, "→ "+p.Fix)
 		case p.Status == "skipped":
 			parts = append(parts, p.Source+" skipped: "+p.Note)
 			sec.Level = worse(sec.Level, "skipped")
@@ -276,16 +282,22 @@ func dotfilesSection(probes []dotfiles.Probe) Section {
 }
 
 func appsSection(a Apps) Section {
+	var sec Section
 	switch {
 	case a.Total == 0:
 		return Section{Name: "apps", Level: "skipped", Text: "no apps scanned"}
 	case len(a.Unknown) == 0:
-		return Section{Name: "apps", Level: "ok", Text: fmt.Sprintf("%d apps, all with a known updater", a.Total)}
+		sec = Section{Name: "apps", Level: "ok", Text: fmt.Sprintf("%d apps, all with a known updater", a.Total)}
 	default:
-		return Section{Name: "apps", Level: "warn",
+		sec = Section{Name: "apps", Level: "warn",
 			Text:  fmt.Sprintf("%d of %d apps with no known updater: %s", len(a.Unknown), a.Total, strings.Join(first(a.Unknown, 5), ", ")),
-			Lines: []string{"name them in the overrides file  (koizumi apps --help)"}}
+			Lines: []string{"→ name them in the overrides file (koizumi apps --help)"}}
 	}
+	// the overrides travel with the dotfiles, so an entry with no app here is one the other Mac has
+	if len(a.NotInstalled) > 0 {
+		sec.Lines = append(sec.Lines, "not installed here, but in the overrides: "+strings.Join(first(a.NotInstalled, 3), ", ")+" (koizumi apps)")
+	}
+	return sec
 }
 
 // worse picks the more serious of two levels.
@@ -316,37 +328,36 @@ func Skipped(r Report) []Item {
 	return items
 }
 
-// Motd is the one line a new terminal shows. Empty when nothing needs attention.
-// A stale report always speaks up, so a dead schedule cannot hide behind silence.
+// Motd is the sentence a new terminal shows, without the speaker (the command line adds
+// "✨ koizumi:"). Empty when nothing needs attention. It counts categories, not items: the
+// point is "is there anything?", and the dashboard is one word away. A stale report always
+// speaks up, so a dead schedule cannot hide behind silence.
 func Motd(r Report, now time.Time) string {
 	if now.Sub(r.When) > Stale {
-		return fmt.Sprintf("koizumi · last check %s · is the schedule alive? koizumi setup", when.Since(r.When, now))
+		return fmt.Sprintf("last check was %s; is the schedule alive? koizumi setup", when.Since(r.When, now))
 	}
-	items := Attention(r)
-	if len(items) == 0 {
+	seen := map[string]bool{}
+	n, failed := 0, false
+	for _, it := range Attention(r) {
+		if !seen[it.Label] {
+			seen[it.Label] = true
+			n++
+		}
+		if it.Level == "error" {
+			failed = true
+		}
+	}
+	if n == 0 {
 		return ""
 	}
-	var order []string
-	counts := map[string]int{}
-	errors := map[string]bool{}
-	for _, it := range items {
-		if _, seen := counts[it.Label]; !seen {
-			order = append(order, it.Label)
-		}
-		counts[it.Label] += it.Count
-		if it.Level == "error" {
-			errors[it.Label] = true
-		}
+	s := fmt.Sprintf("%d things are waiting", n)
+	if n == 1 {
+		s = "1 thing is waiting"
 	}
-	var parts []string
-	for _, l := range order {
-		if errors[l] {
-			parts = append(parts, l+" error")
-		} else {
-			parts = append(parts, fmt.Sprintf("%s %d", l, counts[l]))
-		}
+	if failed {
+		return s + "; a check failed."
 	}
-	return "koizumi ▲ " + strings.Join(parts, " · ") + " → koizumi"
+	return s + "."
 }
 
 // DefaultPath is where check caches its report: $XDG_STATE_HOME/koizumi/report.json.

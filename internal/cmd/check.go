@@ -26,7 +26,7 @@ terminal reads the cache through "koizumi motd" instead of running anything.`,
 		if jsonOut {
 			return json.NewEncoder(os.Stdout).Encode(r)
 		}
-		printDashboard(r, "checked "+r.When.Format("Mon 15:04"))
+		printDashboard(r, "checked just now, next "+nextCheck(r.When))
 		return nil
 	},
 }
@@ -43,15 +43,15 @@ start. Put this in ~/.zshrc:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		r, err := check.Load(check.DefaultPath())
 		if os.IsNotExist(err) {
-			fmt.Println(styleDim.Render("koizumi · never checked · koizumi setup"))
+			fmt.Println(speak("never checked; run koizumi setup."))
 			return nil
 		}
 		if err != nil {
-			fmt.Println(styleBad.Render("koizumi · cached report is unreadable · koizumi check"))
+			fmt.Println(speak(styleBad.Render("the cached report is unreadable; run koizumi check.")))
 			return nil
 		}
-		if line := check.Motd(r, time.Now()); line != "" {
-			fmt.Println(styleWarn.Render(line))
+		if s := check.Motd(r, time.Now()); s != "" {
+			fmt.Println(speak(s))
 		}
 		return nil
 	},
@@ -62,34 +62,40 @@ func options() check.Options {
 	return check.Options{Repo: dotfilesRepo, Brewfiles: brewfiles, AppsDir: appsDir, Overrides: overridesPath}
 }
 
-// printDashboard: a header line, what needs attention, what was skipped, what is fine.
+// printDashboard: one header sentence, then every category with its mark; a ✓ is one line,
+// a ▲ or ✗ earns the command under it. When nothing needs you, it says so and stops.
 func printDashboard(r check.Report, info string) {
 	fmt.Println()
-	fmt.Println(styleAccent.Render("koizumi") + styleDim.Render("  ·  "+r.Host+"  ·  "+info))
+	fmt.Println(signed("✨ " + styleAccent.Render("koizumi") + " on " + r.Host + ", " + info))
+	fine := true
 	for _, s := range check.Sections(r) {
 		fmt.Println()
 		mark, text := styleOK.Render("✓"), s.Text
 		switch s.Level {
 		case "warn":
-			mark = styleWarn.Render("▲")
+			mark, fine = styleWarn.Render("▲"), false
 		case "error":
-			mark = styleBad.Render("✗")
+			mark, fine = styleBad.Render("✗"), false
 		case "skipped":
 			mark, text = styleDim.Render("·"), styleDim.Render(s.Text)
 		}
 		fmt.Printf("%s %-10s %s\n", mark, s.Name, text)
 		for _, l := range s.Lines {
-			fmt.Printf("             %s\n", styleDim.Render(l))
+			fmt.Println("             " + line(l))
 		}
 	}
 	fmt.Println()
+	if fine {
+		fmt.Println(styleDim.Render("nothing to report. as expected."))
+		fmt.Println()
+	}
 }
 
-// nextCheck says when the schedule fires next: "15:00" today or "tomorrow 09:00".
+// nextCheck says when the schedule fires next: "at 15:00" today or "tomorrow at 09:00".
 func nextCheck(now time.Time) string {
 	n := schedule.Next(now)
 	if n.Day() != now.Day() {
-		return "tomorrow " + n.Format("15:04")
+		return "tomorrow at " + n.Format("15:04")
 	}
-	return n.Format("15:04")
+	return "at " + n.Format("15:04")
 }

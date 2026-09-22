@@ -64,8 +64,9 @@ Then add one line to `~/.zshrc`:
 command -v koizumi >/dev/null && koizumi motd
 ```
 
-`motd` only reads the cache, so it costs nothing. It prints one line when something needs
-attention, or when the last check is more than a day and a half old, and nothing otherwise.
+`motd` only reads the cache, so it costs nothing. It prints one sentence when something needs
+attention (`✨ koizumi: 2 things are waiting.`), or when the last check is more than a day and a
+half old, and nothing otherwise.
 
 ## Where the data comes from
 

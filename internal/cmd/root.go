@@ -16,13 +16,16 @@ import (
 // Version is set at build time by goreleaser (-X ...cmd.Version=v0.1.0).
 var Version = "dev"
 
+// One colour per job, from the SOS Brigade palette (plus Gruvbox's green, since peach for
+// "fine" reads as a warning on a dark background). lipgloss degrades them to 256 or 16
+// colours where true colour is missing, and drops them when the output is not a terminal.
 var (
-	styleTitle  = lipgloss.NewStyle().Bold(true)
-	styleDim    = lipgloss.NewStyle().Faint(true)
-	styleWarn   = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))            // yellow
-	styleOK     = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))            // green
-	styleBad    = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))            // red
-	styleAccent = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("6")) // the title
+	styleAccent = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#FF92A8")) // Mikuru Peach: koizumi's own
+	styleOK     = lipgloss.NewStyle().Foreground(lipgloss.Color("#B8BB26"))            // Gruvbox green: fine
+	styleWarn   = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFB81C"))            // Haruhi Ribbon Gold: needs you
+	styleBad    = lipgloss.NewStyle().Foreground(lipgloss.Color("#E4002B"))            // Brigade Chief Red: broken
+	styleNote   = lipgloss.NewStyle().Foreground(lipgloss.Color("#6F5B9B"))            // Silent Data Purple: footnotes
+	styleDim    = lipgloss.NewStyle().Faint(true)                                      // tags and facts
 )
 
 var jsonOut, cached bool
@@ -30,7 +33,9 @@ var jsonOut, cached bool
 var root = &cobra.Command{
 	Use:   "koizumi",
 	Short: "Is my software up to date, and who updates it?",
-	Long: `koizumi answers three questions about this machine:
+	Long: `🤦 koizumi: an esper on retainer. I keep track; you decide.
+
+koizumi answers three questions about this machine:
 
   Is anything out of date?          compared with what each updater offers
   Who updates each app?             the App Store, Homebrew, the app itself, or nobody
@@ -72,15 +77,11 @@ func runDashboard(cmd *cobra.Command, args []string) error {
 		if r, err = check.Load(check.DefaultPath()); err != nil {
 			return fmt.Errorf("no cached report yet: if you just ran koizumi setup, the first check is still running; try again in a few seconds, or run koizumi check")
 		}
-		info = fmt.Sprintf("from the %s check, %s  ·  next %s", r.When.Format("15:04"), when.Ago(r.When), nextCheck(now))
+		info = fmt.Sprintf("from the %s check %s, next %s", r.When.Format("15:04"), when.Ago(r.When), nextCheck(now))
 	} else {
-		last := "no background check yet"
-		if prev, err := check.Load(check.DefaultPath()); err == nil {
-			last = "last check " + when.Ago(prev.When)
-		}
 		r = check.Run(options())
 		_ = check.Save(r, check.DefaultPath()) // keep the terminal line current; not fatal
-		info = fmt.Sprintf("live, %.1fs  ·  %s, next %s", time.Since(now).Seconds(), last, nextCheck(now))
+		info = fmt.Sprintf("checked just now in %.1f s, next %s", time.Since(now).Seconds(), nextCheck(now))
 	}
 	if jsonOut {
 		return json.NewEncoder(os.Stdout).Encode(r)

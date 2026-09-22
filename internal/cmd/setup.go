@@ -68,6 +68,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	fmt.Println("✨ " + styleAccent.Render("koizumi") + " here. I'll check twice a day and say something only when there is something.")
 	fmt.Printf("installed %s\n  runs:  %s -lc '%s check'   at 09:00, 15:00 and login\n  log:   %s\n", tilde(path), shell, tilde(binary), tilde(log))
 	if schedule.Loaded() {
 		fmt.Println("  launchd has it " + styleOK.Render("✓"))

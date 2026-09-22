@@ -20,8 +20,8 @@ var dotfilesCmd = &cobra.Command{
             write (a tool edited one, or the repo moved on). Skipped when
             chezmoi is not installed or not set up on this machine.
   git       the repo itself: uncommitted files, commits to push, commits to
-            pull. It never fetches, so "behind" is as of the last fetch;
-            the note says when that was.
+            pull. It fetches first (a fetch touches none of your files), so
+            "behind" is real; if the fetch fails the note says so.
 
 The repo is --repo, else $DOTFILES, else ~/dev/dotfiles.`,
 	RunE: runDotfiles,
@@ -55,14 +55,14 @@ func runDotfiles(cmd *cobra.Command, args []string) error {
 		}
 		note := p.Note
 		if p.Source == "git" && p.Status != "error" {
-			note = tilde(p.Repo) + " · " + p.Note
+			note = tilde(p.Repo) + ", " + p.Note
 		}
 		fmt.Println(header(p.Status, p.Source, head, note))
 		for _, e := range p.Entries {
 			fmt.Printf("  %-3s %s\n", e.Status, e.Path)
 		}
 		if p.Fix != "" {
-			fmt.Println("  " + styleDim.Render(p.Fix))
+			fmt.Println("  " + line("→ "+p.Fix))
 		}
 		fmt.Println()
 	}

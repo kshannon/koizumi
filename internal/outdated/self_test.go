@@ -70,7 +70,7 @@ func TestSelfProbe(t *testing.T) {
 	if p.Status != "ok" || len(p.Items) != 0 {
 		t.Fatalf("same commit: status %q items %d", p.Status, len(p.Items))
 	}
-	if want := "700c1c1 from " + stamp(mainAt); p.Note != want {
+	if want := "running 700c1c1 from " + stamp(mainAt); p.Note != want {
 		t.Errorf("note %q, want %q", p.Note, want)
 	}
 
@@ -88,7 +88,7 @@ func TestSelfProbe(t *testing.T) {
 	if !strings.Contains(it.Fix, "go install github.com/kshannon/koizumi@main") {
 		t.Errorf("fix %q", it.Fix)
 	}
-	if p.Note != it.Installed {
+	if p.Note != "running "+it.Installed {
 		t.Errorf("behind, the note still says what is running: %q", p.Note)
 	}
 

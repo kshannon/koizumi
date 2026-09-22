@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/kshannon/koizumi/internal/brewfile"
 	"github.com/spf13/cobra"
@@ -55,7 +56,7 @@ func runBrew(cmd *cobra.Command, args []string) error {
 	}
 	note := p.Note
 	if p.Status != "skipped" && p.Status != "error" {
-		note = tilde(p.Files[0]) + " · " + p.Note
+		note = tilde(p.Files[0]) + ", " + p.Note
 	}
 	fmt.Println(header(p.Status, p.Source, verdict, note))
 	rows := []struct {
@@ -70,8 +71,10 @@ func runBrew(cmd *cobra.Command, args []string) error {
 			fmt.Printf("  %-8s %-8s %s\n", r.what, r.kind, n)
 		}
 	}
-	if p.Fix != "" {
-		fmt.Println("  " + styleDim.Render(p.Fix))
+	for _, l := range strings.Split(p.Fix, "\n") {
+		if l != "" {
+			fmt.Println("  " + line(l))
+		}
 	}
 	fmt.Println()
 	return nil

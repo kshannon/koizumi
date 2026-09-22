@@ -40,6 +40,7 @@ func runOutdated(cmd *cobra.Command, args []string) error {
 }
 
 func printReport(r outdated.Report) {
+	pinned := false
 	for _, p := range r.Probes {
 		verdict := "up to date"
 		switch p.Status {
@@ -49,16 +50,40 @@ func printReport(r outdated.Report) {
 			verdict = p.Status
 		}
 		fmt.Println(header(p.Status, p.Source, verdict, p.Note))
+		all := groupFix(p)
 		for _, it := range p.Items {
 			versions := it.Latest
 			if it.Installed != "" {
 				versions = it.Installed + " → " + it.Latest
 			}
-			fmt.Printf("  %-30s %-26s %s\n", it.Name, versions, styleDim.Render(it.Fix))
+			row := fmt.Sprintf("  %-30s %-26s", it.Name, versions)
+			if it.Pinned {
+				row += styleDim.Render(" pinned")
+				pinned = true
+			}
+			fmt.Println(row) // the per-item command stays in --json; the group's is enough here
 		}
-		if p.Status == "outdated" && p.Source == "Homebrew" {
-			fmt.Println(styleDim.Render("  all at once: brew upgrade   (pinned packages are skipped)"))
+		if all != "" {
+			fmt.Println("  " + line("→ "+all))
 		}
 		fmt.Println()
 	}
+	if pinned {
+		fmt.Println(footnote("pinned: brew upgrade leaves it alone; brew unpin <name> lets it through"))
+		fmt.Println()
+	}
+}
+
+// groupFix is the one command that deals with a whole source at once, or "" if none.
+func groupFix(p outdated.Probe) string {
+	if p.Status != "outdated" || len(p.Items) == 0 {
+		return ""
+	}
+	switch p.Source {
+	case "Homebrew":
+		return "brew upgrade"
+	case "App Store":
+		return "mas upgrade"
+	}
+	return p.Items[0].Fix
 }

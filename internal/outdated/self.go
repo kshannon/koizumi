@@ -54,7 +54,7 @@ func selfProbe(installed, mainSHA string, mainAt time.Time) Probe {
 	if at, ok := pseudoTime(installed); ok {
 		running += " from " + stamp(at)
 	}
-	p.Note = running
+	p.Note = "running " + running
 	if !behind {
 		return done(p, nil)
 	}

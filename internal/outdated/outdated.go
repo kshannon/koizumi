@@ -109,7 +109,7 @@ func brewIndexAge(brew string) string {
 	if err != nil {
 		return "index age unknown"
 	}
-	return "index refreshed " + ago(fi.ModTime()) + " (brew update)"
+	return "index refreshed " + ago(fi.ModTime())
 }
 
 // AppStore asks mas, the App Store command-line tool, if it is installed.

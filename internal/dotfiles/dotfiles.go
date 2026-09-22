@@ -74,7 +74,7 @@ func Chezmoi(repo string) Probe {
 	if n := len(p.Entries); n > 0 {
 		p.Status = "drift"
 		p.Note = fmt.Sprintf("%d file(s) in ~ differ from the repo", n)
-		p.Fix = "chezmoi diff, then chezmoi apply --less-interactive · to keep a change made in ~: chezmoi re-add ~/<file>"
+		p.Fix = "chezmoi diff, then chezmoi apply --less-interactive; to keep a change made in ~: chezmoi re-add ~/<file>"
 	}
 	return p
 }
@@ -133,7 +133,7 @@ func Git(repo string) Probe {
 	if t, ok := lastFetch(repo); ok {
 		notes = append(notes, "fetched "+ago(t))
 	}
-	p.Note = strings.Join(notes, " · ")
+	p.Note = strings.Join(notes, ", ")
 
 	var fixes []string
 	if len(p.Entries) > 0 {
@@ -147,7 +147,7 @@ func Git(repo string) Probe {
 	}
 	p.Status = "ok"
 	if len(fixes) > 0 {
-		p.Status, p.Fix = "drift", strings.Join(fixes, " · ")
+		p.Status, p.Fix = "drift", strings.Join(fixes, "; ")
 	}
 	return p
 }

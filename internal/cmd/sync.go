@@ -26,7 +26,7 @@ machine. Nothing is committed and no software is updated.
 
 The repo is --repo, else $DOTFILES, else ~/dev/dotfiles.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println(styleTitle.Render("koizumi pull") + styleDim.Render("  ·  "+tilde(dotfilesRepo)))
+		fmt.Println(styleAccent.Render("koizumi pull") + " in " + tilde(dotfilesRepo))
 		if err := dotsync.Pull(dotfilesRepo, os.Stdout); err != nil {
 			return err
 		}
@@ -53,7 +53,7 @@ ever committed unattended. It also refuses to stage a file whose name looks
 like a secret (.env, id_*, *.pem, *token*, ...). It says "nothing to push"
 when the remote already has everything.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println(styleTitle.Render("koizumi push") + styleDim.Render("  ·  "+tilde(dotfilesRepo)))
+		fmt.Println(styleAccent.Render("koizumi push") + " in " + tilde(dotfilesRepo))
 		return dotsync.Push(dotfilesRepo, os.Stdin, os.Stdout, dotsync.IsTerminal(os.Stdin))
 	},
 }

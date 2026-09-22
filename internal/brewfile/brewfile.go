@@ -151,15 +151,16 @@ func Check(files []string) Probe {
 	if p.Diff.Any() {
 		p.Status = "drift"
 		var fixes []string
+		// one line each; a line starting with "→ " is a command, the rest are facts
 		if len(p.Diff.MissingFormulae)+len(p.Diff.MissingCasks)+len(p.Diff.MissingTaps) > 0 {
 			for _, f := range files {
-				fixes = append(fixes, "install what is missing: brew bundle --no-upgrade --file="+f)
+				fixes = append(fixes, "→ brew bundle --no-upgrade --file="+f)
 			}
 		}
 		if len(p.Diff.ExtraFormulae)+len(p.Diff.ExtraCasks)+len(p.Diff.ExtraTaps) > 0 {
 			fixes = append(fixes, "extras: add them to the Brewfile, or brew uninstall <name>; koizumi never removes anything")
 		}
-		p.Fix = strings.Join(fixes, " · ")
+		p.Fix = strings.Join(fixes, "\n")
 	}
 	return p
 }

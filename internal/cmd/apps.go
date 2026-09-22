@@ -78,26 +78,26 @@ func runApps(cmd *cobra.Command, args []string) error {
 	if jsonOut {
 		return json.NewEncoder(os.Stdout).Encode(list)
 	}
-	printApps(list)
+	printApps(list, apps.NotInstalled(overrides, list))
 	return nil
 }
 
-func printApps(list []apps.App) {
+func printApps(list []apps.App, missing []apps.Missing) {
 	groups := []struct {
 		updater apps.Updater
 		title   string
+		fix     string // the one command for the whole group, if there is one
 	}{
-		{apps.Unknown, "Nobody: check by hand"},
-		{apps.Manual, "You: download by hand"},
-		{apps.Brew, "Homebrew: brew upgrade"},
-		{apps.Self, "The app updates itself"},
-		{apps.MacOS, "macOS: Software Update"},
-		{apps.AppStore, "App Store"},
+		{apps.Unknown, "Nobody knows who updates these", ""},
+		{apps.Manual, "You update these by hand", ""},
+		{apps.Brew, "Homebrew updates these", "brew upgrade"},
+		{apps.Self, "These update themselves", ""},
+		{apps.MacOS, "Software Update handles these", "System Settings > General > Software Update"},
+		{apps.AppStore, "The App Store updates these", "mas upgrade"},
 	}
-	unknown := 0
+	unknown, casks := 0, 0
 	for _, g := range groups {
 		var rows []string
-		casks := 0
 		for _, a := range list {
 			if a.Updater != g.updater {
 				continue
@@ -105,28 +105,43 @@ func printApps(list []apps.App) {
 			if a.Updater == apps.Unknown {
 				unknown++
 			}
-			row := fmt.Sprintf("  %-32s %-12s", a.Name, a.Version)
+			row := fmt.Sprintf("  %-32s %-18s", a.Name, a.Version)
 			if a.Cask != "" {
 				row += styleDim.Render(" brew cask")
 				casks++
+			}
+			if a.Updater == apps.Manual && a.Reason != "" { // where it came from, from the overrides
+				row += styleDim.Render(" " + strings.TrimPrefix(a.Reason, "override: "))
 			}
 			rows = append(rows, row)
 		}
 		if len(rows) == 0 {
 			continue
 		}
-		style := styleOK
+		title := styleAccent
 		if g.updater == apps.Unknown {
-			style = styleWarn
+			title = styleWarn
 		}
-		fmt.Printf("%s %s\n", style.Render("■"), styleTitle.Render(fmt.Sprintf("%s (%d)", g.title, len(rows))))
+		fmt.Println(title.Render(fmt.Sprintf("%s (%d)", g.title, len(rows))))
 		fmt.Println(strings.Join(rows, "\n"))
-		if g.updater == apps.Self && casks > 0 {
-			fmt.Println(styleDim.Render("  brew cask: Homebrew installed it, the app updates itself; brew upgrade skips it unless --greedy"))
+		if g.fix != "" {
+			fmt.Println("  " + line("→ "+g.fix))
+		}
+		fmt.Println()
+	}
+	if len(missing) > 0 {
+		fmt.Println(styleAccent.Render(fmt.Sprintf("Not installed here, but in the overrides (%d)", len(missing))))
+		for _, m := range missing {
+			fmt.Printf("  %-32s %-18s %s\n", m.Name, m.Updater, styleDim.Render(m.Note))
 		}
 		fmt.Println()
 	}
 	if unknown > 0 {
-		fmt.Println(styleDim.Render(fmt.Sprintf("%d unknown: name them in %s (see koizumi apps --help)", unknown, overridesPath)))
+		fmt.Println("  " + line(fmt.Sprintf("→ name them in %s (koizumi apps --help)", tilde(overridesPath))))
+		fmt.Println()
+	}
+	if casks > 0 {
+		fmt.Println(footnote("brew cask: Homebrew installed it; the app still updates itself, so plain brew upgrade leaves it alone"))
+		fmt.Println()
 	}
 }
