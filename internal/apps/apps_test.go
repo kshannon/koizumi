@@ -10,16 +10,16 @@ func TestClassify(t *testing.T) {
 	tests := []struct {
 		name     string
 		facts    Facts
-		override Updater
+		override Override
 		want     Updater
 	}{
-		{"App Store receipt wins", Facts{MASReceipt: true, Cask: "x"}, "", AppStore},
-		{"Sparkle feed means the app updates itself", Facts{SparkleFeed: true}, "", Self},
-		{"bundled updater framework means self", Facts{UpdaterFramework: true}, "", Self},
-		{"cask marked auto_updates means self", Facts{Cask: "raycast", CaskAutoUpdates: true}, "", Self},
-		{"cask without any updater means brew", Facts{Cask: "letos"}, "", Brew},
-		{"nothing known means unknown", Facts{}, "", Unknown},
-		{"an override beats everything", Facts{MASReceipt: true}, Self, Self},
+		{"App Store receipt wins", Facts{MASReceipt: true, Cask: "x"}, Override{}, AppStore},
+		{"Sparkle feed means the app updates itself", Facts{SparkleFeed: true}, Override{}, Self},
+		{"bundled updater framework means self", Facts{UpdaterFramework: true}, Override{}, Self},
+		{"cask marked auto_updates means self", Facts{Cask: "raycast", CaskAutoUpdates: true}, Override{}, Self},
+		{"cask without any updater means brew", Facts{Cask: "letos"}, Override{}, Brew},
+		{"nothing known means unknown", Facts{}, Override{}, Unknown},
+		{"an override beats everything", Facts{MASReceipt: true}, Override{Updater: Self, Note: "I said so"}, Self},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -48,9 +48,15 @@ func TestScanReadsRealBundles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := Scan(dir, nil, nil)
+	writeApp(t, dir, "Mystery.app", `<key>CFBundleShortVersionString</key><string>0.1</string>`)
+	got, err := Scan(dir, nil, map[string]Override{"Mystery": {Self, "updates on launch"}})
 	if err != nil {
 		t.Fatal(err)
+	}
+	for _, a := range got {
+		if a.Name == "Mystery" && a.Reason != "override: updates on launch" {
+			t.Errorf("Mystery reason = %q, want the override note", a.Reason)
+		}
 	}
 	want := map[string]struct {
 		version string
@@ -58,6 +64,7 @@ func TestScanReadsRealBundles(t *testing.T) {
 	}{
 		"Sparkly": {"1.2.3", Self},
 		"Store":   {"9.0", AppStore},
+		"Mystery": {"0.1", Self},
 	}
 	if len(got) != len(want) {
 		t.Fatalf("Scan found %d apps, want %d: %+v", len(got), len(want), got)

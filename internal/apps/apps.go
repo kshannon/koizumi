@@ -18,8 +18,12 @@ const (
 	AppStore Updater = "app-store" // the Mac App Store
 	Brew     Updater = "brew"      // Homebrew, when you run `brew upgrade`
 	Self     Updater = "self"      // the app has its own updater
+	MacOS    Updater = "macos"     // comes with macOS: Software Update
+	Manual   Updater = "manual"    // you download it by hand (an override only)
 	Unknown  Updater = "unknown"   // nothing found: check by hand
 )
+
+var validUpdaters = map[Updater]bool{AppStore: true, Brew: true, Self: true, MacOS: true, Manual: true, Unknown: true}
 
 // Facts are the things the scanner can observe about one app bundle.
 type Facts struct {
@@ -31,10 +35,12 @@ type Facts struct {
 }
 
 // Classify decides who updates an app and says why. An override always wins.
-func Classify(f Facts, override Updater) (Updater, string) {
+func Classify(f Facts, o Override) (Updater, string) {
 	switch {
-	case override != "":
-		return override, "override"
+	case o.Updater != "" && o.Note != "":
+		return o.Updater, "override: " + o.Note
+	case o.Updater != "":
+		return o.Updater, "override"
 	case f.MASReceipt:
 		return AppStore, "App Store receipt"
 	case f.SparkleFeed:
@@ -69,7 +75,7 @@ type Cask struct {
 
 // Scan reads every .app under dir and works out who updates it.
 // casks is keyed by app bundle name; overrides by app name (without .app).
-func Scan(dir string, casks map[string]Cask, overrides map[string]Updater) ([]App, error) {
+func Scan(dir string, casks map[string]Cask, overrides map[string]Override) ([]App, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
