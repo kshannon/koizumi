@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kshannon/koizumi/internal/when"
 	"howett.net/plist"
 )
 
@@ -217,15 +218,4 @@ func failed(p Probe, what string, err error) Probe {
 	return p
 }
 
-// ago renders a time as "just now", "3h ago" or "5d ago".
-func ago(t time.Time) string {
-	d := time.Since(t)
-	switch {
-	case d < time.Hour:
-		return "just now"
-	case d < 48*time.Hour:
-		return fmt.Sprintf("%dh ago", int(d.Hours()))
-	default:
-		return fmt.Sprintf("%dd ago", int(d.Hours()/24))
-	}
-}
+func ago(t time.Time) string { return when.Ago(t) }

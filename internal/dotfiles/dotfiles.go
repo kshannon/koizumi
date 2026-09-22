@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/kshannon/koizumi/internal/when"
 )
 
 // Entry is one file that differs, with the tool's own status code (M, A, D, MM, ...).
@@ -121,7 +123,7 @@ func Git(repo string) Probe {
 
 	var fixes []string
 	if len(p.Entries) > 0 {
-		fixes = append(fixes, fmt.Sprintf("%d uncommitted: commit in %s", len(p.Entries), repo))
+		fixes = append(fixes, "commit in "+repo)
 	}
 	if p.Ahead > 0 {
 		fixes = append(fixes, "git push")
@@ -180,14 +182,4 @@ func failed(p Probe, what string, err error) Probe {
 	return p
 }
 
-func ago(t time.Time) string {
-	d := time.Since(t)
-	switch {
-	case d < time.Hour:
-		return "just now"
-	case d < 48*time.Hour:
-		return fmt.Sprintf("%dh ago", int(d.Hours()))
-	default:
-		return fmt.Sprintf("%dd ago", int(d.Hours()/24))
-	}
-}
+func ago(t time.Time) string { return when.Ago(t) }

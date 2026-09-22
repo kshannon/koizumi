@@ -2,10 +2,12 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/kshannon/koizumi/internal/check"
 	"github.com/spf13/cobra"
 )
 
@@ -20,7 +22,7 @@ var (
 	styleBad   = lipgloss.NewStyle().Foreground(lipgloss.Color("1")) // red
 )
 
-var jsonOut bool
+var jsonOut, cached bool
 
 var root = &cobra.Command{
 	Use:   "koizumi",
@@ -44,7 +46,8 @@ Each command's --help says exactly what it checks and how it decides.`,
 
 func init() {
 	root.PersistentFlags().BoolVar(&jsonOut, "json", false, "print machine-readable JSON instead of a report")
-	root.AddCommand(appsCmd, outdatedCmd, brewCmd, dotfilesCmd, setupCmd)
+	root.Flags().BoolVar(&cached, "cached", false, "show the last check instead of running one")
+	root.AddCommand(appsCmd, outdatedCmd, brewCmd, dotfilesCmd, checkCmd, motdCmd, setupCmd)
 }
 
 // Execute runs the CLI and exits non-zero on error.
@@ -55,8 +58,22 @@ func Execute() {
 	}
 }
 
+// runDashboard shows only what needs attention. Live by default (a few seconds, mostly
+// Homebrew); --cached shows the last background check instead.
 func runDashboard(cmd *cobra.Command, args []string) error {
-	fmt.Println(styleTitle.Render("koizumi") + styleDim.Render("  "+Version))
-	fmt.Println(styleDim.Render("The dashboard is not built yet. Try: koizumi apps"))
+	var r check.Report
+	if cached {
+		var err error
+		if r, err = check.Load(check.DefaultPath()); err != nil {
+			return fmt.Errorf("no cached report yet: run koizumi check (or koizumi setup)")
+		}
+	} else {
+		r = check.Run(options())
+		_ = check.Save(r, check.DefaultPath()) // keep the terminal line current; not fatal
+	}
+	if jsonOut {
+		return json.NewEncoder(os.Stdout).Encode(r)
+	}
+	printDashboard(r)
 	return nil
 }

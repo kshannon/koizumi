@@ -29,6 +29,7 @@ tagged release.
 ## Use
 
 ```bash
+koizumi               # the dashboard: only what needs attention (--cached for the last check)
 koizumi outdated      # what is behind: Homebrew, App Store, macOS, with the command to run
 koizumi dotfiles      # files in ~ vs the repo (chezmoi), and the repo vs its remote (git)
 koizumi brew          # Brewfile vs what is installed: missing and extra
@@ -41,10 +42,28 @@ koizumi --help        # the full reference for every command
 Apps that leave no trace of their updater (Microsoft AutoUpdate, Steam) go in
 `~/.config/koizumi/overrides`; `koizumi apps --help` shows the format.
 
+## The line in a new terminal
+
+Two steps. Install the background check, which runs `koizumi check` at 09:00, 15:00 and
+login and caches the result:
+
+```bash
+koizumi setup
+```
+
+Then add one line to `~/.zshrc`:
+
+```bash
+command -v koizumi >/dev/null && koizumi motd
+```
+
+`motd` only reads the cache, so it costs nothing. It prints one line when something needs
+attention, or when the last check is more than a day and a half old, and nothing otherwise.
+
 ## Status
 
-Early. `outdated`, `dotfiles` and `apps` work. `brew`, `setup` and the dashboard shown by
-`koizumi` with no arguments are designed but not built; each says so and exits 1.
+All commands work. macOS only: `setup` knows launchd, and `apps`, `outdated` read macOS
+things. On Linux the checks that make sense still run (`dotfiles`, `brew`).
 
 ## Build from source
 
