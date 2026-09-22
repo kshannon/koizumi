@@ -1,45 +1,51 @@
 # koizumi
 
-Is my software up to date, and who updates it?
+Is my software up to date, and does this machine still match my dotfiles?
 
-koizumi looks at one machine and answers two questions: is anything out of date, and
-which updater is responsible for each app: the App Store, Homebrew, the app itself, or
-nobody. It only reports. It never installs or updates anything; it prints the command to
-run instead.
+koizumi looks at one machine and reports three things:
 
-Named after Itsuki Koizumi, the SOS Brigade member whose job is to notice trouble and
-report back.
+- **Out of date.** What is behind the latest version its own updater offers: Homebrew,
+  the App Store, macOS.
+- **Who updates what.** For every app, which updater is responsible: the App Store,
+  Homebrew, the app itself, or nobody.
+- **Drift.** Whether the machine still matches the dotfiles repo: is everything the
+  Brewfile lists installed, and do the files in your home folder match what the repo says.
+
+It only reports. It never installs, updates or changes anything. Where something needs
+doing, it prints the command to run.
+
+## Install
+
+You need Go 1.27 or newer (`brew install go`). Then:
+
+```bash
+go install github.com/kshannon/koizumi@latest
+```
+
+That puts the `koizumi` binary in `~/go/bin`. Make sure that folder is on your `PATH`.
+To update, run the same command again. A Homebrew tap will replace this once there is a
+tagged release.
+
+## Use
+
+```bash
+koizumi apps          # every app in /Applications and who updates it
+koizumi apps --json   # the same as data
+koizumi --help        # the full reference for every command
+```
+
+`koizumi <command> --help` explains exactly what each command checks and how it decides.
 
 ## Status
 
-Early. Working today:
+Early. `apps` works. `outdated`, `brew`, `dotfiles`, `setup` and the dashboard shown by
+`koizumi` with no arguments are designed but not built; each says so and exits 1.
 
-```
-koizumi apps        every app in /Applications and who updates it (--json for data)
-```
+## Build from source
 
-Designed, not built yet: `outdated`, `brew`, `dotfiles`, `setup`, and the dashboard that
-`koizumi` with no arguments will show. Each prints "not built yet" until it exists.
-
-## How `apps` decides
-
-For each `.app` it reads `Info.plist` and the bundle, then asks Homebrew about installed
-casks:
-
-| Evidence | Verdict |
-|---|---|
-| `Contents/_MASReceipt/receipt` | App Store updates it |
-| `SUFeedURL` in Info.plist, or a Sparkle / Squirrel / Keystone framework, or an `updater.app` inside the bundle | the app updates itself |
-| a Homebrew cask marked `auto_updates` | the app updates itself |
-| a Homebrew cask with no updater | Homebrew updates it: `brew upgrade` |
-| none of the above | unknown: check by hand |
-
-## Build
-
-```
+```bash
+git clone https://github.com/kshannon/koizumi
+cd koizumi
 go build -o koizumi .
 go test ./...
 ```
-
-Requires Go 1.27 or newer. Releases will be published through a Homebrew tap once the
-first version is tagged.

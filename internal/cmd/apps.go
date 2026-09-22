@@ -15,15 +15,30 @@ var appsDir string
 var appsCmd = &cobra.Command{
 	Use:   "apps",
 	Short: "Every app in /Applications and who updates it",
-	Long: `Lists every app and who keeps it current:
+	Long: `Lists every app in /Applications (or --dir) and who keeps it current:
 
   app-store   the Mac App Store updates it
-  self        the app has its own updater (Sparkle, Squirrel, Keystone, or a cask
-              Homebrew marks auto_updates); let it update itself
+  self        the app updates itself; use its own "check for updates"
   brew        Homebrew installed it and nothing else updates it: brew upgrade
   unknown     no updater found: check by hand
 
-Detection reads each app's Info.plist and bundle, plus Homebrew's cask list.`,
+How it decides, in order. The first match wins:
+
+  1. Contents/_MASReceipt/receipt exists                    -> app-store
+  2. Info.plist has SUFeedURL (Sparkle) or KSUpdateURL      -> self
+     (Google Keystone)
+  3. the bundle contains Sparkle, Squirrel or Keystone       -> self
+     frameworks, or an updater helper app (updater.app,
+     *AutoUpdater.app, ...), up to six folders deep
+  4. Homebrew's cask list marks it auto_updates              -> self
+  5. Homebrew installed it, with no updater found            -> brew
+  6. none of the above                                       -> unknown
+
+"via brew" after a version means Homebrew installed the app, whoever
+updates it. Homebrew is asked with: brew info --cask --json=v2 --installed.
+
+Some apps update themselves but leave no trace in the bundle (Microsoft
+AutoUpdate, Steam). An overrides file for those is planned.`,
 	RunE: runApps,
 }
 

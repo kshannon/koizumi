@@ -25,13 +25,17 @@ var jsonOut bool
 var root = &cobra.Command{
 	Use:   "koizumi",
 	Short: "Is my software up to date, and who updates it?",
-	Long: `koizumi answers two questions about this machine:
+	Long: `koizumi answers three questions about this machine:
 
-  Is anything out of date?      compared with what each updater offers
-  Who updates each app?         the App Store, Homebrew, the app itself, or nobody
+  Is anything out of date?          compared with what each updater offers
+  Who updates each app?             the App Store, Homebrew, the app itself, or nobody
+  Does it still match my dotfiles?  Brewfile vs installed, home folder vs the repo
 
-It only reports. It never installs or updates anything; it tells you the
-command to run instead. With no arguments it shows what needs attention.`,
+It only reports. It never installs, updates or changes anything; where
+something needs doing it prints the command to run. With no arguments it
+shows only what needs attention.
+
+Each command's --help says exactly what it checks and how it decides.`,
 	Version:       Version,
 	SilenceUsage:  true,
 	SilenceErrors: true,
