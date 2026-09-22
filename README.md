@@ -63,6 +63,24 @@ command -v koizumi >/dev/null && koizumi motd
 `motd` only reads the cache, so it costs nothing. It prints one line when something needs
 attention, or when the last check is more than a day and a half old, and nothing otherwise.
 
+## Where the data comes from
+
+Every command's `--help` states exactly what it reads and how it decides. In short:
+
+| Command | Reads | Decides with |
+|---|---|---|
+| `apps` | each app's `Info.plist` and bundle, `brew info --cask --json=v2 --installed`, `~/.config/koizumi/overrides` | six rules, in order (`koizumi apps --help`) |
+| `outdated` | `brew outdated --json=v2`, `mas outdated`, Software Update's own plist | each updater's idea of "latest"; never `--greedy` |
+| `dotfiles` | `chezmoi status`, `git status`, `git rev-list @{u}...HEAD`, `FETCH_HEAD`'s age | drift if anything differs; it never fetches |
+| `brew` | the Brewfile(s), `brew list --installed-on-request`, `brew list --cask`, `brew tap` | two-way set difference on names |
+| `check` / dashboard | all of the above | severity order: errors, macOS, dotfiles, Brewfile, Homebrew, App Store, apps |
+
+The background job runs `check` through your login shell (`$SHELL -lc`) so it sees the same
+environment you do. That matters: Homebrew keeps the list of third-party taps you trust
+under `$XDG_CONFIG_HOME`, and with an empty environment it silently leaves those taps'
+formulae out of its answers. Nothing about your machine is hard-coded in koizumi; the
+per-machine facts live in your shell files and the overrides file.
+
 ## Status
 
 All commands work. macOS only: `setup` knows launchd, and `apps`, `outdated` read macOS
