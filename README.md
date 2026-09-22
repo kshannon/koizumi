@@ -29,16 +29,19 @@ tagged release.
 ## Use
 
 ```bash
+koizumi outdated      # what is behind: Homebrew, App Store, macOS, with the command to run
 koizumi apps          # every app in /Applications and who updates it
-koizumi apps --json   # the same as data
+koizumi --json ...    # any command as data
 koizumi --help        # the full reference for every command
 ```
 
 `koizumi <command> --help` explains exactly what each command checks and how it decides.
+Apps that leave no trace of their updater (Microsoft AutoUpdate, Steam) go in
+`~/.config/koizumi/overrides`; `koizumi apps --help` shows the format.
 
 ## Status
 
-Early. `apps` works. `outdated`, `brew`, `dotfiles`, `setup` and the dashboard shown by
+Early. `outdated` and `apps` work. `brew`, `dotfiles`, `setup` and the dashboard shown by
 `koizumi` with no arguments are designed but not built; each says so and exits 1.
 
 ## Build from source

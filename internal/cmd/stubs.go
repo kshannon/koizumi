@@ -10,15 +10,6 @@ import (
 
 var errNotBuilt = errors.New("not built yet")
 
-var outdatedCmd = &cobra.Command{
-	Use:   "outdated",
-	Short: "Everything out of date, grouped by who updates it",
-	Long: `Compares each installed thing with the latest its updater offers: Homebrew
-formulae and casks, App Store apps, macOS itself. For each item it prints the
-command (or the click) that updates it. It never runs the update.`,
-	RunE: func(*cobra.Command, []string) error { return errNotBuilt },
-}
-
 var brewCmd = &cobra.Command{
 	Use:   "brew",
 	Short: "Brewfile vs what is actually installed",
