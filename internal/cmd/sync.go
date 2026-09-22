@@ -14,9 +14,12 @@ var pullCmd = &cobra.Command{
 	Long: `Two steps, in order:
 
   git pull --ff-only                in the dotfiles repo
-  chezmoi apply --less-interactive  writes the repo's files into ~, asking
-                                    before it replaces any file it did not
-                                    write itself
+  chezmoi apply --less-interactive --verbose
+                                    writes the repo's files into ~ and prints
+                                    each file it touched; asks before it
+                                    replaces any file it did not write itself.
+                                    At a prompt the first letter is enough:
+                                    d(iff) o(verwrite) a(ll-overwrite) s(kip) q(uit)
 
 The apply step is skipped, and says so, when chezmoi is not set up on this
 machine. Nothing is committed and no software is updated.

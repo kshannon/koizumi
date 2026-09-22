@@ -28,8 +28,8 @@ func Pull(repo string, out io.Writer) error {
 		fmt.Fprintf(out, "· chezmoi apply skipped: %s\n", why)
 		return nil
 	}
-	fmt.Fprintln(out, "→ chezmoi apply --less-interactive")
-	if err := passthrough("chezmoi", "apply", "--less-interactive"); err != nil {
+	fmt.Fprintln(out, "→ chezmoi apply --less-interactive --verbose")
+	if err := passthrough("chezmoi", "apply", "--less-interactive", "--verbose"); err != nil {
 		return fmt.Errorf("chezmoi apply stopped: %w", err)
 	}
 	return nil
