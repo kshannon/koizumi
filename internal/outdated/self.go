@@ -14,6 +14,29 @@ import (
 // mainCommit is GitHub's view of the repo's main branch: its commit sha and when it was made.
 const mainCommit = "https://api.github.com/repos/kshannon/koizumi/commits/main"
 
+// Running says what this binary is, for --version: the tag, else the commit and its time,
+// else that it was built from source.
+func Running() string {
+	if bi, ok := debug.ReadBuildInfo(); ok {
+		return describe(bi.Main.Version)
+	}
+	return describe("")
+}
+
+func describe(installed string) string {
+	if installed == "" || strings.Contains(installed, "devel") {
+		return "dev, built from source"
+	}
+	if sha, _ := pseudoSHA(installed); sha == "" {
+		return installed // a tag
+	}
+	s := short(installed)
+	if at, ok := pseudoTime(installed); ok {
+		s += " from " + stamp(at)
+	}
+	return s
+}
+
 // Self asks whether this koizumi binary is behind the repo's main branch. A binary from
 // `go install ...@main` carries a pseudo-version ending in the commit's time and sha; that
 // is compared with GitHub's current main. A build from source ("(devel)") cannot be compared.

@@ -9,12 +9,14 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/kshannon/koizumi/internal/check"
+	"github.com/kshannon/koizumi/internal/outdated"
 	"github.com/kshannon/koizumi/internal/when"
 	"github.com/spf13/cobra"
 )
 
-// Version is set at build time by goreleaser (-X ...cmd.Version=v0.1.0).
-var Version = "dev"
+// Version is what --version prints: the tag once there are releases, else the commit the
+// binary was built from and when (from the module's pseudo-version), else "dev".
+var Version = outdated.Running()
 
 // One colour per job, from the SOS Brigade palette (plus Gruvbox's green, since peach for
 // "fine" reads as a warning on a dark background). lipgloss degrades them to 256 or 16

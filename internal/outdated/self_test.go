@@ -96,3 +96,20 @@ func TestSelfProbe(t *testing.T) {
 		t.Errorf("source build: status %q", p.Status)
 	}
 }
+
+// --version says what the binary knows about itself: the tag, else the commit and its
+// time from the pseudo-version, else that it is a source build.
+func TestDescribe(t *testing.T) {
+	at := stamp(time.Date(2026, 9, 22, 18, 24, 38, 0, time.UTC))
+	for in, want := range map[string]string{
+		"v0.0.0-20260922182438-ed88e64abcde":       "ed88e64 from " + at,
+		"v0.0.0-20260922182438-ed88e64abcde+dirty": "ed88e64+ from " + at,
+		"v0.1.0":  "v0.1.0",
+		"(devel)": "dev, built from source",
+		"":        "dev, built from source",
+	} {
+		if got := describe(in); got != want {
+			t.Errorf("describe(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
