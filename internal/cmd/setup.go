@@ -16,9 +16,12 @@ var setupCmd = &cobra.Command{
 	Use:   "setup",
 	Short: "Install the background check on this machine",
 	Long: `Writes a launchd agent that runs "koizumi check" at 09:00 and 15:00 and at
-login, then loads it. The agent gets an explicit PATH that includes Homebrew,
-and logs to ~/Library/Logs/koizumi.log. Safe to run again after koizumi is
-reinstalled somewhere else. macOS only for now.
+login, then loads it. The job runs through your login shell ($SHELL -lc),
+so it sees the same environment you do: launchd's own environment has no
+Homebrew on its PATH and no XDG_CONFIG_HOME, and without the latter brew
+silently leaves out formulae from third-party taps you have trusted.
+It logs to ~/Library/Logs/koizumi.log. Safe to run again after koizumi
+is reinstalled somewhere else. macOS only for now.
 
 Then add the terminal line to ~/.zshrc:
 
@@ -51,16 +54,20 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	if resolved, err := filepath.EvalSymlinks(binary); err == nil {
 		binary = resolved
 	}
+	shell := os.Getenv("SHELL")
+	if _, err := os.Stat(shell); shell == "" || err != nil {
+		shell = "/bin/zsh"
+	}
 	log, _ := schedule.LogPath()
 	if setupPrint {
-		fmt.Print(schedule.Plist(binary, log))
+		fmt.Print(schedule.Plist(shell, binary, log))
 		return nil
 	}
-	path, err := schedule.Install(binary)
+	path, err := schedule.Install(shell, binary)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("installed %s\n  runs:  %s check   at 09:00, 15:00 and login\n  log:   %s\n", tilde(path), tilde(binary), tilde(log))
+	fmt.Printf("installed %s\n  runs:  %s -lc '%s check'   at 09:00, 15:00 and login\n  log:   %s\n", tilde(path), shell, tilde(binary), tilde(log))
 	if schedule.Loaded() {
 		fmt.Println("  launchd has it " + styleOK.Render("✓"))
 	} else {

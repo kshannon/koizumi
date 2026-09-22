@@ -12,10 +12,15 @@ import (
 // Label is the launchd job name.
 const Label = "com.kshannon.koizumi"
 
-// Plist renders the agent: run `<binary> check` at 09:00 and 15:00 and at login, with an
-// explicit PATH. launchd's own PATH has no /opt/homebrew/bin, which is how a previous
-// daily job silently skipped every Homebrew check for its entire life.
-func Plist(binary, log string) string {
+// Plist renders the agent: run `<binary> check` at 09:00 and 15:00 and at login.
+//
+// It runs through the user's login shell (`shell -lc`) so the job sees the same environment
+// the user does. launchd's own environment is almost empty: its PATH has no /opt/homebrew/bin
+// (a previous daily job silently skipped every Homebrew check for its entire life), and it
+// has no XDG_CONFIG_HOME, which is where Homebrew keeps the record of which third-party taps
+// you trust; without it brew quietly drops those taps' formulae from its answers.
+// An explicit PATH is still set as a floor, in case the shell files do not set one.
+func Plist(shell, binary, log string) string {
 	return fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -25,7 +30,8 @@ func Plist(binary, log string) string {
 	<key>ProgramArguments</key>
 	<array>
 		<string>%s</string>
-		<string>check</string>
+		<string>-lc</string>
+		<string>'%s' check</string>
 	</array>
 	<key>EnvironmentVariables</key>
 	<dict>
@@ -45,7 +51,7 @@ func Plist(binary, log string) string {
 	<string>%s</string>
 </dict>
 </plist>
-`, Label, binary, log, log)
+`, Label, shell, binary, log, log)
 }
 
 // PlistPath is ~/Library/LaunchAgents/<Label>.plist.
@@ -66,8 +72,8 @@ func LogPath() (string, error) {
 	return filepath.Join(home, "Library", "Logs", "koizumi.log"), nil
 }
 
-// Install writes the plist for the given binary and (re)loads it. Safe to run again.
-func Install(binary string) (string, error) {
+// Install writes the plist for the given shell and binary and (re)loads it. Safe to run again.
+func Install(shell, binary string) (string, error) {
 	path, err := PlistPath()
 	if err != nil {
 		return "", err
@@ -79,7 +85,7 @@ func Install(binary string) (string, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return "", err
 	}
-	if err := os.WriteFile(path, []byte(Plist(binary, log)), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(Plist(shell, binary, log)), 0o644); err != nil {
 		return "", err
 	}
 	_ = launchctl("bootout", domain()+"/"+Label) // not loaded yet is fine
