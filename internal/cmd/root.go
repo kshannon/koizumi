@@ -65,7 +65,7 @@ func runDashboard(cmd *cobra.Command, args []string) error {
 	if cached {
 		var err error
 		if r, err = check.Load(check.DefaultPath()); err != nil {
-			return fmt.Errorf("no cached report yet: run koizumi check (or koizumi setup)")
+			return fmt.Errorf("no cached report yet: if you just ran koizumi setup, the first check is still running; try again in a few seconds, or run koizumi check")
 		}
 	} else {
 		r = check.Run(options())

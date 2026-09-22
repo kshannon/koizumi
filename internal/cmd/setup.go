@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/kshannon/koizumi/internal/schedule"
 	"github.com/spf13/cobra"
@@ -73,6 +74,11 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	} else {
 		fmt.Println("  " + styleWarn.Render("launchd does not report it loaded; check: launchctl print gui/$UID/"+schedule.Label))
 	}
-	fmt.Println("\nnow add to ~/.zshrc:  command -v koizumi >/dev/null && koizumi motd")
+	fmt.Println("  the first check is running now: koizumi --cached shows it in a few seconds")
+	if home, err := os.UserHomeDir(); err == nil {
+		if zshrc, err := os.ReadFile(filepath.Join(home, ".zshrc")); err != nil || !strings.Contains(string(zshrc), "koizumi motd") {
+			fmt.Println("\nnow add to ~/.zshrc:  command -v koizumi >/dev/null && koizumi motd")
+		}
+	}
 	return nil
 }
