@@ -2,6 +2,7 @@ package check
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -111,24 +112,36 @@ func indexOf(s, sub string) int {
 	return -1
 }
 
-func TestFineListsOnlyTheProbesThatAreOK(t *testing.T) {
+func TestSectionsAlwaysShowEveryCategoryInAFixedOrder(t *testing.T) {
 	r := fixture() // macOS outdated, App Store skipped, git drift, Brewfile drift, 1 unknown app
-	if got := Fine(r); len(got) != 0 {
-		t.Errorf("nothing is fine in the fixture, got %v", got)
+	s := Sections(r)
+	var names, levels []string
+	for _, x := range s {
+		names, levels = append(names, x.Name), append(levels, x.Level)
 	}
-	r.Outdated[0].Status, r.Outdated[0].Items = "ok", nil // Homebrew
-	r.Outdated[2].Status, r.Outdated[2].Items = "ok", nil // macOS
-	r.Dotfiles[1].Status, r.Dotfiles[1].Entries = "ok", nil
-	r.Brewfile.Status = "ok"
-	r.Apps.Unknown = nil
-	want := []string{"Homebrew current", "macOS current", "dotfiles in sync", "Brewfile in sync", "55 apps, all with a known updater"}
-	got := Fine(r)
-	if len(got) != len(want) {
-		t.Fatalf("got %v, want %v", got, want)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("got %v, want %v", got, want)
+	wantNames := []string{"macOS", "Homebrew", "App Store", "dotfiles", "apps"}
+	wantLevels := []string{"warn", "warn", "skipped", "warn", "warn"}
+	for i := range wantNames {
+		if i >= len(names) || names[i] != wantNames[i] || levels[i] != wantLevels[i] {
+			t.Fatalf("got %v %v, want %v %v", names, levels, wantNames, wantLevels)
 		}
+	}
+	// Homebrew carries the Brewfile fact as its own line, so "behind" and "missing" never blur
+	if !contains(s[1].Text, "117 behind") || !contains(strings.Join(s[1].Lines, "\n"), "Brewfile: 3 missing, 2 extra") {
+		t.Errorf("Homebrew section = %+v", s[1])
+	}
+	// a clean report says so in every section
+	c := Report{
+		Outdated: []outdated.Probe{{Source: "Homebrew", Status: "ok"}, {Source: "App Store", Status: "ok"}, {Source: "macOS", Status: "ok"}},
+		Dotfiles: []dotfiles.Probe{{Source: "chezmoi", Status: "ok"}, {Source: "git", Status: "ok", Branch: "main", Upstream: true}},
+		Brewfile: brewfile.Probe{Status: "ok"}, Apps: Apps{Total: 16},
+	}
+	for _, x := range Sections(c) {
+		if x.Level != "ok" {
+			t.Errorf("%s should be ok in a clean report, got %s: %s", x.Name, x.Level, x.Text)
+		}
+	}
+	if got := Sections(c)[3].Text; got != "in sync with the repo, repo in sync with GitHub" {
+		t.Errorf("clean dotfiles text = %q", got)
 	}
 }

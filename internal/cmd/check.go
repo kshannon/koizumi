@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/kshannon/koizumi/internal/check"
@@ -67,24 +66,21 @@ func options() check.Options {
 func printDashboard(r check.Report, info string) {
 	fmt.Println()
 	fmt.Println(styleAccent.Render("koizumi") + styleDim.Render("  ·  "+r.Host+"  ·  "+info))
-	items := check.Attention(r)
-	for _, it := range items {
-		mark := styleWarn.Render("▲")
-		if it.Level == "error" {
+	for _, s := range check.Sections(r) {
+		fmt.Println()
+		mark, text := styleOK.Render("✓"), s.Text
+		switch s.Level {
+		case "warn":
+			mark = styleWarn.Render("▲")
+		case "error":
 			mark = styleBad.Render("✗")
+		case "skipped":
+			mark, text = styleDim.Render("·"), styleDim.Render(s.Text)
 		}
-		fmt.Printf("%s %-10s %s\n", mark, it.Source, it.Text)
-		if it.Fix != "" {
-			fmt.Printf("             %s\n", styleDim.Render(it.Fix))
+		fmt.Printf("%s %-10s %s\n", mark, s.Name, text)
+		for _, l := range s.Lines {
+			fmt.Printf("             %s\n", styleDim.Render(l))
 		}
-	}
-	for _, it := range check.Skipped(r) {
-		fmt.Printf("%s %-10s %s\n", styleDim.Render("·"), it.Source, styleDim.Render("skipped: "+it.Text))
-	}
-	if fine := check.Fine(r); len(fine) > 0 {
-		fmt.Println(styleOK.Render("✓") + " " + styleDim.Render(strings.Join(fine, "  ·  ")))
-	} else if len(items) == 0 {
-		fmt.Println(styleOK.Render("✓") + " nothing needs attention")
 	}
 	fmt.Println()
 }

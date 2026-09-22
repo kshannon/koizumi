@@ -43,7 +43,7 @@ type Report struct {
 
 // All runs every probe.
 func All() Report {
-	return Report{When: time.Now(), Probes: []Probe{Brew(), AppStore(), MacOS()}}
+	return Report{When: time.Now(), Probes: []Probe{Brew(), AppStore(), MacOS(), Self()}}
 }
 
 // Brew asks Homebrew what is behind. Self-updating casks are left to themselves (no --greedy).

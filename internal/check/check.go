@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/kshannon/koizumi/internal/apps"
@@ -46,23 +47,30 @@ type Options struct {
 	Overrides string
 }
 
-// Run executes every probe now.
+// Run executes every probe now. The probes are independent (and mostly waiting on brew,
+// git or the network), so they run concurrently.
 func Run(o Options) Report {
 	host, _ := os.Hostname()
 	r := Report{When: time.Now(), Host: strings.TrimSuffix(host, ".local"), Apps: Apps{Unknown: []string{}}}
-	r.Outdated = outdated.All().Probes
-	r.Dotfiles = dotfiles.All(o.Repo).Probes
-	r.Brewfile = brewfile.Check(o.Brewfiles)
-	casks, _ := apps.LoadCasks()
-	overrides, _ := apps.LoadOverrides(o.Overrides)
-	if list, err := apps.Scan(o.AppsDir, casks, overrides); err == nil {
-		r.Apps.Total = len(list)
-		for _, a := range list {
-			if a.Updater == apps.Unknown {
-				r.Apps.Unknown = append(r.Apps.Unknown, a.Name)
+	var wg sync.WaitGroup
+	wg.Add(4)
+	go func() { defer wg.Done(); r.Outdated = outdated.All().Probes }()
+	go func() { defer wg.Done(); r.Dotfiles = dotfiles.All(o.Repo).Probes }()
+	go func() { defer wg.Done(); r.Brewfile = brewfile.Check(o.Brewfiles) }()
+	go func() {
+		defer wg.Done()
+		casks, _ := apps.LoadCasks()
+		overrides, _ := apps.LoadOverrides(o.Overrides)
+		if list, err := apps.Scan(o.AppsDir, casks, overrides); err == nil {
+			r.Apps.Total = len(list)
+			for _, a := range list {
+				if a.Updater == apps.Unknown {
+					r.Apps.Unknown = append(r.Apps.Unknown, a.Name)
+				}
 			}
 		}
-	}
+	}()
+	wg.Wait()
 	return r
 }
 
@@ -150,34 +158,136 @@ func Attention(r Report) []Item {
 	return items
 }
 
-// Fine lists what is in order, for the dashboard's last line: probes that ran and found
-// nothing, in the same order the attention list uses.
-func Fine(r Report) []string {
-	var fine []string
+// Section is one category on the dashboard, always shown, with its own mark.
+type Section struct {
+	Level string   `json:"level"` // ok, warn, error, skipped
+	Name  string   `json:"name"`
+	Text  string   `json:"text"`
+	Lines []string `json:"lines,omitempty"` // fixes and secondary facts, shown indented
+}
+
+// Sections renders the report as fixed categories: macOS, Homebrew (with the Brewfile fact
+// as its own line, so "behind" and "missing" never blur), App Store, dotfiles, apps, and
+// koizumi itself when that probe ran.
+func Sections(r Report) []Section {
+	byName := map[string]outdated.Probe{}
 	for _, p := range r.Outdated {
-		if p.Status == "ok" {
-			fine = append(fine, p.Source+" current")
+		byName[p.Source] = p
+	}
+	var s []Section
+	s = append(s, updaterSection(byName["macOS"], "macOS", "updates"))
+	hb := updaterSection(byName["Homebrew"], "Homebrew", "behind")
+	switch r.Brewfile.Status {
+	case "ok":
+		hb.Lines = append(hb.Lines, "Brewfile: everything listed is installed")
+	case "drift":
+		d := r.Brewfile.Diff
+		hb.Lines = append(hb.Lines, fmt.Sprintf("Brewfile: %d missing, %d extra  ·  koizumi brew",
+			len(d.MissingFormulae)+len(d.MissingCasks)+len(d.MissingTaps), len(d.ExtraFormulae)+len(d.ExtraCasks)+len(d.ExtraTaps)))
+		hb.Level = worse(hb.Level, "warn")
+	case "error":
+		hb.Lines = append(hb.Lines, "Brewfile: "+r.Brewfile.Note)
+		hb.Level = "error"
+	}
+	s = append(s, hb, updaterSection(byName["App Store"], "App Store", "behind"), dotfilesSection(r.Dotfiles), appsSection(r.Apps))
+	if p, ok := byName["koizumi"]; ok {
+		s = append(s, updaterSection(p, "koizumi", "behind"))
+	}
+	return s
+}
+
+func updaterSection(p outdated.Probe, name, noun string) Section {
+	sec := Section{Name: name}
+	switch p.Status {
+	case "ok":
+		sec.Level, sec.Text = "ok", "current"
+	case "outdated":
+		sec.Level = "warn"
+		sec.Text = fmt.Sprintf("%d %s: %s", len(p.Items), noun, names(p.Items, 3))
+		switch name {
+		case "Homebrew":
+			sec.Text = fmt.Sprintf("%d %s", len(p.Items), noun)
+			sec.Lines = append(sec.Lines, "brew upgrade  (koizumi outdated for the list)")
+		case "App Store":
+			sec.Lines = append(sec.Lines, "mas upgrade  (koizumi outdated for the list)")
+		default:
+			if len(p.Items) > 0 {
+				sec.Lines = append(sec.Lines, p.Items[0].Fix)
+			}
+		}
+		if p.Note != "" {
+			sec.Text += "  ·  " + p.Note
+		}
+	case "skipped":
+		sec.Level, sec.Text = "skipped", "skipped: "+p.Note
+	case "error":
+		sec.Level, sec.Text = "error", p.Note
+	default:
+		sec.Level, sec.Text = "skipped", "not checked"
+	}
+	return sec
+}
+
+func dotfilesSection(probes []dotfiles.Probe) Section {
+	sec := Section{Name: "dotfiles", Level: "ok"}
+	var parts []string
+	for _, p := range probes {
+		switch {
+		case p.Source == "chezmoi" && p.Status == "ok":
+			parts = append(parts, "in sync with the repo")
+		case p.Source == "chezmoi" && p.Status == "drift":
+			parts = append(parts, p.Note)
+			sec.Level, sec.Lines = worse(sec.Level, "warn"), append(sec.Lines, p.Fix)
+		case p.Source == "git" && p.Status == "ok":
+			parts = append(parts, "repo in sync with GitHub")
+		case p.Source == "git" && p.Status == "drift":
+			var g []string
+			if n := len(p.Entries); n > 0 {
+				g = append(g, fmt.Sprintf("%d uncommitted", n))
+			}
+			if p.Ahead > 0 {
+				g = append(g, fmt.Sprintf("%d to push", p.Ahead))
+			}
+			if p.Behind > 0 {
+				g = append(g, fmt.Sprintf("%d to pull", p.Behind))
+			}
+			parts = append(parts, strings.Join(g, ", "))
+			sec.Level, sec.Lines = worse(sec.Level, "warn"), append(sec.Lines, p.Fix)
+		case p.Status == "skipped":
+			parts = append(parts, p.Source+" skipped: "+p.Note)
+			sec.Level = worse(sec.Level, "skipped")
+		case p.Status == "error":
+			parts = append(parts, p.Source+": "+p.Note)
+			sec.Level = "error"
 		}
 	}
-	dotfilesOK, dotfilesBad := false, false
-	for _, p := range r.Dotfiles {
-		switch p.Status {
-		case "ok":
-			dotfilesOK = true
-		case "drift", "error":
-			dotfilesBad = true
-		}
+	sec.Text = strings.Join(parts, ", ")
+	if sec.Text == "" {
+		sec.Level, sec.Text = "skipped", "not checked"
 	}
-	if dotfilesOK && !dotfilesBad {
-		fine = append(fine, "dotfiles in sync")
+	return sec
+}
+
+func appsSection(a Apps) Section {
+	switch {
+	case a.Total == 0:
+		return Section{Name: "apps", Level: "skipped", Text: "no apps scanned"}
+	case len(a.Unknown) == 0:
+		return Section{Name: "apps", Level: "ok", Text: fmt.Sprintf("%d apps, all with a known updater", a.Total)}
+	default:
+		return Section{Name: "apps", Level: "warn",
+			Text:  fmt.Sprintf("%d of %d apps with no known updater: %s", len(a.Unknown), a.Total, strings.Join(first(a.Unknown, 5), ", ")),
+			Lines: []string{"name them in the overrides file  (koizumi apps --help)"}}
 	}
-	if r.Brewfile.Status == "ok" {
-		fine = append(fine, "Brewfile in sync")
+}
+
+// worse picks the more serious of two levels.
+func worse(a, b string) string {
+	rank := map[string]int{"ok": 0, "skipped": 1, "warn": 2, "error": 3}
+	if rank[b] > rank[a] {
+		return b
 	}
-	if r.Apps.Total > 0 && len(r.Apps.Unknown) == 0 {
-		fine = append(fine, fmt.Sprintf("%d apps, all with a known updater", r.Apps.Total))
-	}
-	return fine
+	return a
 }
 
 // Skipped lists the probes that could not run on this machine, so they are visible.

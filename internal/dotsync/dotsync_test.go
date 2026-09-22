@@ -72,6 +72,10 @@ func TestGitPullFastForwards(t *testing.T) {
 	git(a, "commit", "-q", "-am", "two")
 	git(a, "push", "-q")
 
+	// before pulling, the probe must already know b is behind: it fetches
+	if p := dotfiles.Git(b); p.Behind != 1 || p.Status != "drift" {
+		t.Fatalf("Git(b) before pull = behind %d status %q, want 1 drift (does it fetch?)", p.Behind, p.Status)
+	}
 	if err := GitPull(b); err != nil {
 		t.Fatal(err)
 	}

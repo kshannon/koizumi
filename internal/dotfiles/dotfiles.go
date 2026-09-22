@@ -3,6 +3,7 @@
 package dotfiles
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -90,8 +91,9 @@ func ParseStatus(out string) []Entry {
 	return entries
 }
 
-// Git reports the repo's own state: uncommitted files, commits to push or pull.
-// It never fetches; "behind" is as of the last fetch.
+// Git reports the repo's own state: uncommitted files, commits to push or pull. It fetches
+// first (a fetch touches no files of yours, only what git knows about the remote), so
+// "behind" is real; if the fetch fails, "behind" is as of the last fetch and the note says so.
 func Git(repo string) Probe {
 	p := Probe{Source: "git", Repo: repo, Entries: []Entry{}}
 	// Only the trailing newline is trimmed: porcelain lines start with a meaningful space.
@@ -104,6 +106,14 @@ func Git(repo string) Probe {
 		return failed(p, repo, fmt.Errorf("not a git repository"))
 	}
 	p.Branch = branch
+	fetched := true
+	{
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		if err := exec.CommandContext(ctx, "git", "-C", repo, "fetch", "--quiet").Run(); err != nil {
+			fetched = false
+		}
+	}
 	// --untracked-files=all lists each new file; the default collapses a new directory into one line.
 	if out, err := git("status", "--porcelain", "--untracked-files=all"); err == nil && out != "" {
 		p.Entries = ParseStatus(out + "\n")
@@ -116,6 +126,9 @@ func Git(repo string) Probe {
 		}
 	} else {
 		notes = append(notes, "no upstream")
+	}
+	if !fetched {
+		notes = append(notes, "fetch failed")
 	}
 	if t, ok := lastFetch(repo); ok {
 		notes = append(notes, "fetched "+ago(t))
