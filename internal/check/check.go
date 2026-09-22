@@ -201,6 +201,9 @@ func updaterSection(p outdated.Probe, name, noun string) Section {
 	switch p.Status {
 	case "ok":
 		sec.Level, sec.Text = "ok", "current"
+		if p.Note != "" { // e.g. which koizumi commit is running, when macOS last checked
+			sec.Text += "  ·  " + p.Note
+		}
 	case "outdated":
 		sec.Level = "warn"
 		sec.Text = fmt.Sprintf("%d %s: %s", len(p.Items), noun, names(p.Items, 3))
@@ -210,6 +213,11 @@ func updaterSection(p outdated.Probe, name, noun string) Section {
 			sec.Lines = append(sec.Lines, "brew upgrade  (koizumi outdated for the list)")
 		case "App Store":
 			sec.Lines = append(sec.Lines, "mas upgrade  (koizumi outdated for the list)")
+		case "koizumi": // one item, both sides named: what runs here and what main is
+			it := p.Items[0]
+			sec.Text = "behind: running " + it.Installed + ", main is " + it.Latest
+			sec.Lines = append(sec.Lines, it.Fix)
+			return sec
 		default:
 			if len(p.Items) > 0 {
 				sec.Lines = append(sec.Lines, p.Items[0].Fix)

@@ -145,3 +145,25 @@ func TestSectionsAlwaysShowEveryCategoryInAFixedOrder(t *testing.T) {
 		t.Errorf("clean dotfiles text = %q", got)
 	}
 }
+
+// The koizumi line always says which commit is running and when it was made; behind, it
+// names both sides and the install command.
+func TestKoizumiSectionNamesTheCommits(t *testing.T) {
+	r := Report{Outdated: []outdated.Probe{{Source: "koizumi", Status: "ok", Note: "700c1c1 from 2026-09-22 18:10"}}}
+	s := Sections(r)
+	k := s[len(s)-1]
+	if k.Name != "koizumi" || k.Level != "ok" || k.Text != "current  ·  700c1c1 from 2026-09-22 18:10" {
+		t.Errorf("current: %+v", k)
+	}
+	r.Outdated[0] = outdated.Probe{Source: "koizumi", Status: "outdated", Note: "473f944 from 2026-09-22 17:57",
+		Items: []outdated.Item{{Name: "koizumi", Installed: "473f944 from 2026-09-22 17:57", Latest: "700c1c1 from 2026-09-22 18:10",
+			Fix: "GOPROXY=direct go install github.com/kshannon/koizumi@main"}}}
+	s = Sections(r)
+	k = s[len(s)-1]
+	if k.Level != "warn" || k.Text != "behind: running 473f944 from 2026-09-22 17:57, main is 700c1c1 from 2026-09-22 18:10" {
+		t.Errorf("behind: %+v", k)
+	}
+	if len(k.Lines) != 1 || !contains(k.Lines[0], "go install github.com/kshannon/koizumi@main") {
+		t.Errorf("behind lines: %v", k.Lines)
+	}
+}
