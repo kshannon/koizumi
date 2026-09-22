@@ -10,14 +10,6 @@ import (
 
 var errNotBuilt = errors.New("not built yet")
 
-var brewCmd = &cobra.Command{
-	Use:   "brew",
-	Short: "Brewfile vs what is actually installed",
-	Long: `Reads the Brewfile from the dotfiles repo and reports what it lists but is not
-installed, and what is installed but not listed.`,
-	RunE: func(*cobra.Command, []string) error { return errNotBuilt },
-}
-
 var setupCmd = &cobra.Command{
 	Use:   "setup",
 	Short: "Install the background check on this machine",

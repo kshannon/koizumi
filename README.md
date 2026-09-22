@@ -31,6 +31,7 @@ tagged release.
 ```bash
 koizumi outdated      # what is behind: Homebrew, App Store, macOS, with the command to run
 koizumi dotfiles      # files in ~ vs the repo (chezmoi), and the repo vs its remote (git)
+koizumi brew          # Brewfile vs what is installed: missing and extra
 koizumi apps          # every app in /Applications and who updates it
 koizumi --json ...    # any command as data
 koizumi --help        # the full reference for every command
