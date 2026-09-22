@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/kshannon/koizumi/internal/check"
+	"github.com/kshannon/koizumi/internal/when"
 	"github.com/spf13/cobra"
 )
 
@@ -15,11 +17,12 @@ import (
 var Version = "dev"
 
 var (
-	styleTitle = lipgloss.NewStyle().Bold(true)
-	styleDim   = lipgloss.NewStyle().Faint(true)
-	styleWarn  = lipgloss.NewStyle().Foreground(lipgloss.Color("3")) // yellow
-	styleOK    = lipgloss.NewStyle().Foreground(lipgloss.Color("2")) // green
-	styleBad   = lipgloss.NewStyle().Foreground(lipgloss.Color("1")) // red
+	styleTitle  = lipgloss.NewStyle().Bold(true)
+	styleDim    = lipgloss.NewStyle().Faint(true)
+	styleWarn   = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))            // yellow
+	styleOK     = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))            // green
+	styleBad    = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))            // red
+	styleAccent = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("6")) // the title
 )
 
 var jsonOut, cached bool
@@ -61,19 +64,27 @@ func Execute() {
 // runDashboard shows only what needs attention. Live by default (a few seconds, mostly
 // Homebrew); --cached shows the last background check instead.
 func runDashboard(cmd *cobra.Command, args []string) error {
+	now := time.Now()
 	var r check.Report
+	var info string
 	if cached {
 		var err error
 		if r, err = check.Load(check.DefaultPath()); err != nil {
 			return fmt.Errorf("no cached report yet: if you just ran koizumi setup, the first check is still running; try again in a few seconds, or run koizumi check")
 		}
+		info = fmt.Sprintf("from the %s check, %s  ·  next %s", r.When.Format("15:04"), when.Ago(r.When), nextCheck(now))
 	} else {
+		last := "no background check yet"
+		if prev, err := check.Load(check.DefaultPath()); err == nil {
+			last = "last check " + when.Ago(prev.When)
+		}
 		r = check.Run(options())
 		_ = check.Save(r, check.DefaultPath()) // keep the terminal line current; not fatal
+		info = fmt.Sprintf("live, %.1fs  ·  %s, next %s", time.Since(now).Seconds(), last, nextCheck(now))
 	}
 	if jsonOut {
 		return json.NewEncoder(os.Stdout).Encode(r)
 	}
-	printDashboard(r)
+	printDashboard(r, info)
 	return nil
 }

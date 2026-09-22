@@ -3,6 +3,7 @@ package schedule
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestPlistRunsCheckThroughTheLoginShell(t *testing.T) {
@@ -28,5 +29,18 @@ func TestPlistRunsCheckThroughTheLoginShell(t *testing.T) {
 	}
 	if !strings.HasPrefix(p, "<?xml") || !strings.HasSuffix(strings.TrimSpace(p), "</plist>") {
 		t.Error("not a complete plist document")
+	}
+}
+
+func TestNextCheck(t *testing.T) {
+	at := func(h, m int) time.Time { return time.Date(2026, 9, 22, h, m, 0, 0, time.Local) }
+	if got := Next(at(10, 0)); !got.Equal(at(15, 0)) {
+		t.Errorf("after 10:00 the next check is 15:00, got %v", got)
+	}
+	if got := Next(at(16, 30)); !got.Equal(at(9, 0).Add(24 * time.Hour)) {
+		t.Errorf("after 16:30 the next check is 09:00 tomorrow, got %v", got)
+	}
+	if got := Next(at(9, 0)); !got.Equal(at(15, 0)) {
+		t.Errorf("exactly at 09:00 the next check is 15:00, got %v", got)
 	}
 }

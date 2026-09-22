@@ -7,10 +7,25 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // Label is the launchd job name.
 const Label = "com.kshannon.koizumi"
+
+// Hours are when the check runs each day (plus at login).
+var Hours = []int{9, 15}
+
+// Next is the next scheduled check after now.
+func Next(now time.Time) time.Time {
+	for _, h := range Hours {
+		if t := time.Date(now.Year(), now.Month(), now.Day(), h, 0, 0, 0, now.Location()); now.Before(t) {
+			return t
+		}
+	}
+	tomorrow := now.AddDate(0, 0, 1)
+	return time.Date(tomorrow.Year(), tomorrow.Month(), tomorrow.Day(), Hours[0], 0, 0, 0, now.Location())
+}
 
 // Plist renders the agent: run `<binary> check` at 09:00 and 15:00 and at login.
 //

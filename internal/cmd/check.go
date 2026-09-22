@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/kshannon/koizumi/internal/check"
-	"github.com/kshannon/koizumi/internal/when"
+	"github.com/kshannon/koizumi/internal/schedule"
 	"github.com/spf13/cobra"
 )
 
@@ -26,7 +27,7 @@ terminal reads the cache through "koizumi motd" instead of running anything.`,
 		if jsonOut {
 			return json.NewEncoder(os.Stdout).Encode(r)
 		}
-		printDashboard(r)
+		printDashboard(r, "checked "+r.When.Format("Mon 15:04"))
 		return nil
 	},
 }
@@ -62,8 +63,10 @@ func options() check.Options {
 	return check.Options{Repo: dotfilesRepo, Brewfiles: brewfiles, AppsDir: appsDir, Overrides: overridesPath}
 }
 
-func printDashboard(r check.Report) {
-	fmt.Println(styleTitle.Render("koizumi") + styleDim.Render("  ·  "+r.Host+"  ·  checked "+when.Ago(r.When)))
+// printDashboard: a header line, what needs attention, what was skipped, what is fine.
+func printDashboard(r check.Report, info string) {
+	fmt.Println()
+	fmt.Println(styleAccent.Render("koizumi") + styleDim.Render("  ·  "+r.Host+"  ·  "+info))
 	items := check.Attention(r)
 	for _, it := range items {
 		mark := styleWarn.Render("▲")
@@ -78,9 +81,19 @@ func printDashboard(r check.Report) {
 	for _, it := range check.Skipped(r) {
 		fmt.Printf("%s %-10s %s\n", styleDim.Render("·"), it.Source, styleDim.Render("skipped: "+it.Text))
 	}
-	if len(items) == 0 {
+	if fine := check.Fine(r); len(fine) > 0 {
+		fmt.Println(styleOK.Render("✓") + " " + styleDim.Render(strings.Join(fine, "  ·  ")))
+	} else if len(items) == 0 {
 		fmt.Println(styleOK.Render("✓") + " nothing needs attention")
-	} else {
-		fmt.Println(styleOK.Render("✓") + styleDim.Render(" everything else is fine"))
 	}
+	fmt.Println()
+}
+
+// nextCheck says when the schedule fires next: "15:00" today or "tomorrow 09:00".
+func nextCheck(now time.Time) string {
+	n := schedule.Next(now)
+	if n.Day() != now.Day() {
+		return "tomorrow " + n.Format("15:04")
+	}
+	return n.Format("15:04")
 }

@@ -150,6 +150,36 @@ func Attention(r Report) []Item {
 	return items
 }
 
+// Fine lists what is in order, for the dashboard's last line: probes that ran and found
+// nothing, in the same order the attention list uses.
+func Fine(r Report) []string {
+	var fine []string
+	for _, p := range r.Outdated {
+		if p.Status == "ok" {
+			fine = append(fine, p.Source+" current")
+		}
+	}
+	dotfilesOK, dotfilesBad := false, false
+	for _, p := range r.Dotfiles {
+		switch p.Status {
+		case "ok":
+			dotfilesOK = true
+		case "drift", "error":
+			dotfilesBad = true
+		}
+	}
+	if dotfilesOK && !dotfilesBad {
+		fine = append(fine, "dotfiles in sync")
+	}
+	if r.Brewfile.Status == "ok" {
+		fine = append(fine, "Brewfile in sync")
+	}
+	if r.Apps.Total > 0 && len(r.Apps.Unknown) == 0 {
+		fine = append(fine, fmt.Sprintf("%d apps, all with a known updater", r.Apps.Total))
+	}
+	return fine
+}
+
 // Skipped lists the probes that could not run on this machine, so they are visible.
 func Skipped(r Report) []Item {
 	var items []Item

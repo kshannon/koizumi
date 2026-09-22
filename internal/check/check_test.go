@@ -110,3 +110,25 @@ func indexOf(s, sub string) int {
 	}
 	return -1
 }
+
+func TestFineListsOnlyTheProbesThatAreOK(t *testing.T) {
+	r := fixture() // macOS outdated, App Store skipped, git drift, Brewfile drift, 1 unknown app
+	if got := Fine(r); len(got) != 0 {
+		t.Errorf("nothing is fine in the fixture, got %v", got)
+	}
+	r.Outdated[0].Status, r.Outdated[0].Items = "ok", nil // Homebrew
+	r.Outdated[2].Status, r.Outdated[2].Items = "ok", nil // macOS
+	r.Dotfiles[1].Status, r.Dotfiles[1].Entries = "ok", nil
+	r.Brewfile.Status = "ok"
+	r.Apps.Unknown = nil
+	want := []string{"Homebrew current", "macOS current", "dotfiles in sync", "Brewfile in sync", "55 apps, all with a known updater"}
+	got := Fine(r)
+	if len(got) != len(want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("got %v, want %v", got, want)
+		}
+	}
+}
