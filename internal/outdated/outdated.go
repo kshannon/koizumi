@@ -136,7 +136,7 @@ func ParseMasOutdated(out string) []Item {
 		if m == nil {
 			continue
 		}
-		items = append(items, Item{Source: "app-store", Name: m[2], Installed: m[3], Latest: m[4], Fix: "mas upgrade " + m[1]})
+		items = append(items, Item{Source: "app-store", Name: strings.TrimSpace(m[2]), Installed: m[3], Latest: m[4], Fix: "mas upgrade " + m[1]})
 	}
 	return items
 }

@@ -35,7 +35,8 @@ func TestParseBrewOutdated(t *testing.T) {
 }
 
 func TestParseMasOutdated(t *testing.T) {
-	out := "1295203466   Microsoft Remote Desktop (10.9.10 -> 10.9.11)\n497799835 Xcode (15.0 -> 15.1)\n"
+	// real mas pads names to a column width: the trailing spaces must not survive
+	out := "1295203466   Microsoft Remote Desktop       (10.9.10 -> 10.9.11)\n497799835 Xcode (15.0 -> 15.1)\n"
 	items := ParseMasOutdated(out)
 	if len(items) != 2 {
 		t.Fatalf("got %d items, want 2: %+v", len(items), items)
