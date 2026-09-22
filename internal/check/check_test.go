@@ -130,6 +130,16 @@ func TestSectionsAlwaysShowEveryCategoryInAFixedOrder(t *testing.T) {
 	if !contains(s[1].Text, "117 behind") || !contains(strings.Join(s[1].Lines, "\n"), "Brewfile: 3 missing, 2 extra") {
 		t.Errorf("Homebrew section = %+v", s[1])
 	}
+	// what is behind is named on the line (first three, "+N more"), and the fix line is just
+	// the command: no "(koizumi outdated for the list)" aside
+	if !contains(s[1].Text, "117 behind: ") || !contains(s[1].Text, "+114 more") || s[1].Lines[0] != "brew upgrade" {
+		t.Errorf("Homebrew section = %+v", s[1])
+	}
+	as := Sections(Report{Outdated: []outdated.Probe{{Source: "App Store", Status: "outdated",
+		Items: []outdated.Item{{Name: "Keynote"}, {Name: "Numbers"}, {Name: "Pages"}}}}})[2]
+	if as.Text != "3 behind: Keynote, Numbers, Pages" || len(as.Lines) != 1 || as.Lines[0] != "mas upgrade" {
+		t.Errorf("App Store section = %+v", as)
+	}
 	// a clean report says so in every section
 	c := Report{
 		Outdated: []outdated.Probe{{Source: "Homebrew", Status: "ok"}, {Source: "App Store", Status: "ok"}, {Source: "macOS", Status: "ok"}},

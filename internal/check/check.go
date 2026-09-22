@@ -106,7 +106,7 @@ func Attention(r Report) []Item {
 			case "App Store":
 				it.Text, it.Fix, it.rank = fmt.Sprintf("%d behind: %s", len(p.Items), names(p.Items, 3)), "mas upgrade", 4
 			default:
-				it.Text, it.Fix, it.rank = fmt.Sprintf("%d behind", len(p.Items)), "brew upgrade  (koizumi outdated for the list)", 4
+				it.Text, it.Fix, it.rank = fmt.Sprintf("%d behind: %s", len(p.Items), names(p.Items, 3)), "brew upgrade", 4
 				if p.Note != "" {
 					it.Text += " · " + p.Note
 				}
@@ -209,10 +209,9 @@ func updaterSection(p outdated.Probe, name, noun string) Section {
 		sec.Text = fmt.Sprintf("%d %s: %s", len(p.Items), noun, names(p.Items, 3))
 		switch name {
 		case "Homebrew":
-			sec.Text = fmt.Sprintf("%d %s", len(p.Items), noun)
-			sec.Lines = append(sec.Lines, "brew upgrade  (koizumi outdated for the list)")
+			sec.Lines = append(sec.Lines, "brew upgrade")
 		case "App Store":
-			sec.Lines = append(sec.Lines, "mas upgrade  (koizumi outdated for the list)")
+			sec.Lines = append(sec.Lines, "mas upgrade")
 		case "koizumi": // one item, both sides named: what runs here and what main is
 			it := p.Items[0]
 			sec.Text = "behind: running " + it.Installed + ", main is " + it.Latest
