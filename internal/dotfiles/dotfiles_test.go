@@ -51,13 +51,20 @@ func TestGitProbeOnRealRepo(t *testing.T) {
 	run("add", "a.txt")
 	run("commit", "-q", "-m", "first")
 	os.WriteFile(filepath.Join(dir, "a.txt"), []byte("changed"), 0o644)
+	// an untracked file inside a NEW directory must be listed by file, not as "newdir/"
+	os.MkdirAll(filepath.Join(dir, "newdir"), 0o755)
+	os.WriteFile(filepath.Join(dir, "newdir", "x.txt"), []byte("x"), 0o644)
 
 	p := Git(dir)
 	if p.Status != "drift" {
 		t.Fatalf("status = %q (%s), want drift", p.Status, p.Note)
 	}
-	if len(p.Entries) != 1 || p.Entries[0].Path != "a.txt" {
-		t.Errorf("entries = %+v, want the one modified file", p.Entries)
+	var paths []string
+	for _, e := range p.Entries {
+		paths = append(paths, e.Path)
+	}
+	if len(paths) != 2 || paths[0] != "a.txt" || paths[1] != "newdir/x.txt" {
+		t.Errorf("entries = %v, want [a.txt newdir/x.txt]", paths)
 	}
 	if p.Branch != "main" {
 		t.Errorf("branch = %q, want main", p.Branch)

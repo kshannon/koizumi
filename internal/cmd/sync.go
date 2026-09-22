@@ -34,13 +34,24 @@ The repo is --repo, else $DOTFILES, else ~/dev/dotfiles.`,
 
 var pushCmd = &cobra.Command{
 	Use:   "push",
-	Short: "Push committed dotfiles to the remote",
-	Long: `git push in the dotfiles repo. It refuses with a clear message when there are
-uncommitted changes (commit first; a commit is yours to write) or no upstream
-branch, and says "nothing to push" when the remote already has everything.`,
+	Short: "Push the dotfiles; offers one commit for anything uncommitted",
+	Long: `git push in the dotfiles repo.
+
+If there are uncommitted changes and you are at a terminal, it shows them and
+proposes ONE commit for all of them: a subject naming the areas touched
+("Update zshrc, starship") and a body listing every file. Then:
+
+  Enter   commit with that message and push
+  e       open the message in $EDITOR first (vim if unset)
+  n       stop; nothing is committed
+
+Without a terminal (a script, a cron job) it refuses instead, so nothing is
+ever committed unattended. It also refuses to stage a file whose name looks
+like a secret (.env, id_*, *.pem, *token*, ...). It says "nothing to push"
+when the remote already has everything.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Println(styleTitle.Render("koizumi push") + styleDim.Render("  ·  "+tilde(dotfilesRepo)))
-		return dotsync.Push(dotfilesRepo, os.Stdout)
+		return dotsync.Push(dotfilesRepo, os.Stdin, os.Stdout, dotsync.IsTerminal(os.Stdin))
 	},
 }
 

@@ -13,7 +13,8 @@ koizumi looks at one machine and reports three things:
 
 It never installs or updates software. Where something needs doing, it prints the command
 to run. The one thing it does do is move the dotfiles: `pull` fetches the repo and applies
-it (chezmoi asks before overwriting anything), `push` pushes what you have committed.
+it (chezmoi asks before overwriting anything), `push` pushes it, offering one commit for
+anything uncommitted first.
 
 ## Install
 
@@ -36,7 +37,7 @@ koizumi dotfiles      # files in ~ vs the repo (chezmoi), and the repo vs its re
 koizumi brew          # Brewfile vs what is installed: missing and extra
 koizumi apps          # every app in /Applications and who updates it
 koizumi pull          # git pull --ff-only, then chezmoi apply (asks before overwriting)
-koizumi push          # git push; refuses if anything is uncommitted
+koizumi push          # git push; with uncommitted changes it drafts one commit and asks first
 koizumi --json ...    # any command as data
 koizumi --help        # the full reference for every command
 ```

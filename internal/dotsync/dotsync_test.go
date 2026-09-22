@@ -79,3 +79,63 @@ func TestGitPullFastForwards(t *testing.T) {
 		t.Fatalf("b was not fast-forwarded, f = %q", got)
 	}
 }
+
+func TestDraftBuildsOneCommitForEverything(t *testing.T) {
+	entries := []dotfiles.Entry{
+		{Status: "M", Path: "home/dot_zshrc"},
+		{Status: "M", Path: "home/dot_config/starship.toml"},
+		{Status: "??", Path: "home/dot_config/koizumi/overrides"},
+		{Status: "M", Path: "brew/Brewfile.common"},
+		{Status: "M", Path: "docs/howto/tmux.md"},
+		{Status: "M", Path: "home/private_dot_ssh/config"},
+	}
+	subject, body := Draft(entries)
+	if want := "Update zshrc, starship, koizumi, Brewfile +2 more"; subject != want {
+		t.Errorf("subject\n got  %q\n want %q", subject, want)
+	}
+	for _, line := range []string{"M home/dot_zshrc", "A home/dot_config/koizumi/overrides", "M home/private_dot_ssh/config"} { // ?? becomes A
+		if !strings.Contains(body, line) {
+			t.Errorf("body is missing %q:\n%s", line, body)
+		}
+	}
+	if strings.Contains(body, "---") {
+		t.Error("no --- line: git stops reading trailers at one")
+	}
+	if s, _ := Draft([]dotfiles.Entry{{Status: "M", Path: "home/dot_zshrc"}}); s != "Update zshrc" {
+		t.Errorf("single area: %q", s)
+	}
+	// a bare directory entry ("home/dot_config/") has no file to name: skipped, no trailing comma
+	if s, _ := Draft([]dotfiles.Entry{{Status: "M", Path: "home/dot_zshrc"}, {Status: "??", Path: "home/dot_config/"}}); s != "Update zshrc" {
+		t.Errorf("directory entry: %q", s)
+	}
+}
+
+func TestIsTerminalIsFalseForDevNullAndPipes(t *testing.T) {
+	devnull, err := os.Open(os.DevNull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer devnull.Close()
+	if IsTerminal(devnull) {
+		t.Error("/dev/null is a character device but not a terminal")
+	}
+	r, w, _ := os.Pipe()
+	defer r.Close()
+	defer w.Close()
+	if IsTerminal(r) {
+		t.Error("a pipe is not a terminal")
+	}
+}
+
+func TestSecretish(t *testing.T) {
+	for _, p := range []string{"home/private_dot_ssh/id_ed25519", ".env", "home/dot_env.local", "secrets/x.pem", "creds/token.json", "home/dot_netrc"} {
+		if !Secretish(p) {
+			t.Errorf("%q should look secret", p)
+		}
+	}
+	for _, p := range []string{"home/dot_zshrc", "home/private_dot_ssh/config", "docs/howto/tmux.md", "home/dot_config/koizumi/overrides"} {
+		if Secretish(p) {
+			t.Errorf("%q should not look secret", p)
+		}
+	}
+}

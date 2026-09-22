@@ -104,7 +104,8 @@ func Git(repo string) Probe {
 		return failed(p, repo, fmt.Errorf("not a git repository"))
 	}
 	p.Branch = branch
-	if out, err := git("status", "--porcelain"); err == nil && out != "" {
+	// --untracked-files=all lists each new file; the default collapses a new directory into one line.
+	if out, err := git("status", "--porcelain", "--untracked-files=all"); err == nil && out != "" {
 		p.Entries = ParseStatus(out + "\n")
 	}
 	notes := []string{branch}
