@@ -41,20 +41,14 @@ func runOutdated(cmd *cobra.Command, args []string) error {
 
 func printReport(r outdated.Report) {
 	for _, p := range r.Probes {
-		mark, head := styleOK.Render("■"), "up to date"
+		verdict := "up to date"
 		switch p.Status {
 		case "outdated":
-			mark, head = styleWarn.Render("■"), fmt.Sprintf("%d behind", len(p.Items))
-		case "skipped":
-			mark, head = styleDim.Render("■"), "skipped"
-		case "error":
-			mark, head = styleBad.Render("■"), "error"
+			verdict = fmt.Sprintf("%d behind", len(p.Items))
+		case "skipped", "error":
+			verdict = p.Status
 		}
-		line := fmt.Sprintf("%s %s  %s", mark, styleTitle.Render(p.Source), head)
-		if p.Note != "" {
-			line += styleDim.Render("  · " + p.Note)
-		}
-		fmt.Println(line)
+		fmt.Println(header(p.Status, p.Source, verdict, p.Note))
 		for _, it := range p.Items {
 			versions := it.Latest
 			if it.Installed != "" {

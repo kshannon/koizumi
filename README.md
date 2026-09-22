@@ -30,6 +30,7 @@ tagged release.
 
 ```bash
 koizumi outdated      # what is behind: Homebrew, App Store, macOS, with the command to run
+koizumi dotfiles      # files in ~ vs the repo (chezmoi), and the repo vs its remote (git)
 koizumi apps          # every app in /Applications and who updates it
 koizumi --json ...    # any command as data
 koizumi --help        # the full reference for every command
@@ -41,7 +42,7 @@ Apps that leave no trace of their updater (Microsoft AutoUpdate, Steam) go in
 
 ## Status
 
-Early. `outdated` and `apps` work. `brew`, `dotfiles`, `setup` and the dashboard shown by
+Early. `outdated`, `dotfiles` and `apps` work. `brew`, `setup` and the dashboard shown by
 `koizumi` with no arguments are designed but not built; each says so and exits 1.
 
 ## Build from source

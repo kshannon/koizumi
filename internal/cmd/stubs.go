@@ -18,14 +18,6 @@ installed, and what is installed but not listed.`,
 	RunE: func(*cobra.Command, []string) error { return errNotBuilt },
 }
 
-var dotfilesCmd = &cobra.Command{
-	Use:   "dotfiles",
-	Short: "Home folder vs the dotfiles repo",
-	Long: `Runs chezmoi status and git status on the dotfiles repo: files in ~ that differ
-from the repo, uncommitted changes, commits to push or pull.`,
-	RunE: func(*cobra.Command, []string) error { return errNotBuilt },
-}
-
 var setupCmd = &cobra.Command{
 	Use:   "setup",
 	Short: "Install the background check on this machine",
