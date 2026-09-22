@@ -60,7 +60,7 @@ func selfProbe(installed, mainSHA string, mainAt time.Time) Probe {
 	}
 	return done(p, []Item{{Source: "koizumi", Name: "koizumi", Installed: running,
 		Latest: mainSHA[:7] + " from " + stamp(mainAt),
-		Fix:    "GOPROXY=direct go install github.com/kshannon/koizumi@main"}})
+		Fix:    "go install github.com/kshannon/koizumi@main"}})
 }
 
 // ParseGitHubCommit reads GitHub's commit JSON: the sha and the committer date.

@@ -22,11 +22,14 @@ You need Go 1.27 or newer (`brew install go`). Then:
 
 ```bash
 go env -w GOBIN="$HOME/.local/bin"        # once: install into a folder already on your PATH
-go install github.com/kshannon/koizumi@latest
+export GOPRIVATE=github.com/kshannon/koizumi   # once, in your shell files: fetch straight from GitHub
+go install github.com/kshannon/koizumi@main
 ```
 
-Skip the first line if `~/go/bin` is already on your `PATH`. To update, run the second line
-again. A Homebrew tap will replace this once there is a tagged release.
+Skip the first line if `~/go/bin` is already on your `PATH`. Without `GOPRIVATE`, `go install`
+goes through Google's module proxy and checksum log, which take a while to learn about a fresh
+commit ("404 Not Found" right after a push). To update, run the last line again; `koizumi`
+tells you when it is behind. A Homebrew tap will replace this once there is a tagged release.
 
 ## Use
 

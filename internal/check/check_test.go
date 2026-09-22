@@ -167,7 +167,7 @@ func TestKoizumiSectionNamesTheCommits(t *testing.T) {
 	}
 	r.Outdated[0] = outdated.Probe{Source: "koizumi", Status: "outdated", Note: "473f944 from 2026-09-22 17:57",
 		Items: []outdated.Item{{Name: "koizumi", Installed: "473f944 from 2026-09-22 17:57", Latest: "700c1c1 from 2026-09-22 18:10",
-			Fix: "GOPROXY=direct go install github.com/kshannon/koizumi@main"}}}
+			Fix: "go install github.com/kshannon/koizumi@main"}}}
 	s = Sections(r)
 	k = s[len(s)-1]
 	if k.Level != "warn" || k.Text != "behind: running 473f944 from 2026-09-22 17:57, main is 700c1c1 from 2026-09-22 18:10" {
