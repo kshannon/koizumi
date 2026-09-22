@@ -38,8 +38,10 @@ How it decides, in order. The first match wins:
   5. Homebrew installed it, with no updater found            -> brew
   6. none of the above                                       -> unknown
 
-"via brew" after a version means Homebrew installed the app, whoever
-updates it. Homebrew is asked with: brew info --cask --json=v2 --installed.
+"brew cask" after a version means Homebrew installed the app, whoever
+updates it: a cask marked auto_updates is upgraded by the app itself, and
+plain brew upgrade leaves it alone (brew upgrade --greedy would not).
+Homebrew is asked with: brew info --cask --json=v2 --installed.
 
 Some apps update themselves but leave no trace in the bundle (Microsoft
 AutoUpdate, Steam). Tell koizumi about those in the overrides file,
@@ -95,6 +97,7 @@ func printApps(list []apps.App) {
 	unknown := 0
 	for _, g := range groups {
 		var rows []string
+		casks := 0
 		for _, a := range list {
 			if a.Updater != g.updater {
 				continue
@@ -104,7 +107,8 @@ func printApps(list []apps.App) {
 			}
 			row := fmt.Sprintf("  %-32s %-12s", a.Name, a.Version)
 			if a.Cask != "" {
-				row += styleDim.Render(" via brew")
+				row += styleDim.Render(" brew cask")
+				casks++
 			}
 			rows = append(rows, row)
 		}
@@ -117,6 +121,9 @@ func printApps(list []apps.App) {
 		}
 		fmt.Printf("%s %s\n", style.Render("■"), styleTitle.Render(fmt.Sprintf("%s (%d)", g.title, len(rows))))
 		fmt.Println(strings.Join(rows, "\n"))
+		if g.updater == apps.Self && casks > 0 {
+			fmt.Println(styleDim.Render("  brew cask: Homebrew installed it, the app updates itself; brew upgrade skips it unless --greedy"))
+		}
 		fmt.Println()
 	}
 	if unknown > 0 {
