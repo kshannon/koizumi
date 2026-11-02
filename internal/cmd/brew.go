@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/kshannon/koizumi/internal/brewfile"
@@ -28,18 +29,39 @@ Nothing is installed or removed. The fix for missing entries is
 "brew bundle --no-upgrade --file=<Brewfile>"; extras are yours to add to
 the Brewfile or uninstall.
 
---brewfile can be given more than once. The default is
-$DOTFILES/brew/Brewfile.common, else ~/dev/dotfiles/brew/Brewfile.common.`,
+--brewfile can be given more than once. The default is Brewfile.common plus
+this machine's own Brewfile.<hostname>, when that file exists, under
+$DOTFILES/brew else ~/dev/dotfiles/brew.`,
 	RunE: runBrew,
 }
 
 func init() {
+	brewCmd.Flags().StringSliceVar(&brewfiles, "brewfile", defaultBrewfiles(), "Brewfile to check (repeatable)")
+}
+
+// defaultBrewfiles is Brewfile.common, plus brew/Brewfile.<hostname> when this machine has one.
+// Naming the per-machine file after the hostname keeps the choice out of the code: a new Mac is
+// covered the day you add brew/Brewfile.<its hostname>, with nothing to edit or release. A file
+// that is not there is left out rather than passed on: brewfile.Check reports a missing file as
+// an error, and most machines will only ever have the shared one.
+func defaultBrewfiles() []string {
 	def := os.Getenv("DOTFILES")
 	if def == "" {
 		home, _ := os.UserHomeDir()
 		def = home + "/dev/dotfiles"
 	}
-	brewCmd.Flags().StringSliceVar(&brewfiles, "brewfile", []string{def + "/brew/Brewfile.common"}, "Brewfile to check (repeatable)")
+	files := []string{def + "/brew/Brewfile.common"}
+	host, err := os.Hostname()
+	if err != nil {
+		return files
+	}
+	// trimmed the same way check.go does, so the dashboard header and this cannot disagree
+	// about which machine we are on
+	mine := def + "/brew/Brewfile." + strings.TrimSuffix(host, ".local")
+	if _, err := os.Stat(mine); err == nil {
+		files = append(files, mine)
+	}
+	return files
 }
 
 func runBrew(cmd *cobra.Command, args []string) error {
@@ -55,8 +77,14 @@ func runBrew(cmd *cobra.Command, args []string) error {
 		verdict = p.Status
 	}
 	note := p.Note
-	if p.Status != "skipped" && p.Status != "error" {
-		note = tilde(p.Files[0]) + ", " + p.Note
+	if p.Status != "skipped" && p.Status != "error" && len(p.Files) > 0 {
+		// name every file read, so it is visible whether this machine's own Brewfile was picked
+		// up; the first in full, the rest by name since they sit beside it
+		names := []string{tilde(p.Files[0])}
+		for _, f := range p.Files[1:] {
+			names = append(names, path.Base(f))
+		}
+		note = strings.Join(names, " + ") + ", " + p.Note
 	}
 	fmt.Println(header(p.Status, p.Source, verdict, note))
 	rows := []struct {
