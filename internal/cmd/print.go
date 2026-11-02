@@ -65,3 +65,20 @@ func tilde(path string) string {
 	}
 	return path
 }
+
+// choice renders one of the ways out of a drift: a question, in bold, with its first word
+// (the kind of drift it answers, "missing" or "extra") in the colour that means "needs you".
+func choice(when string) string {
+	word, _, _ := strings.Cut(when, " ")
+	word = strings.TrimSuffix(word, ",")
+	tail := strings.TrimPrefix(when, word)
+	return styleWarn.Bold(true).Render(word) + lipgloss.NewStyle().Bold(true).Render(tail)
+}
+
+// tildeIn shortens every path under the home folder inside a command to ~/...
+func tildeIn(cmd string) string {
+	if home, err := os.UserHomeDir(); err == nil {
+		return strings.ReplaceAll(cmd, home+"/", "~/")
+	}
+	return cmd
+}

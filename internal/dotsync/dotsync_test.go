@@ -143,3 +143,14 @@ func TestSecretish(t *testing.T) {
 		}
 	}
 }
+
+func TestEditorIsEDITORElseNano(t *testing.T) {
+	t.Setenv("EDITOR", "")
+	if got := Editor(); got != "nano" {
+		t.Errorf("EDITOR unset: want nano, got %q", got)
+	}
+	t.Setenv("EDITOR", "code --wait")
+	if got := Editor(); got != "code --wait" {
+		t.Errorf("EDITOR set: want it back verbatim, got %q", got)
+	}
+}

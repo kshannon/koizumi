@@ -217,7 +217,26 @@ func Commit(repo, message string) error {
 	return passthrough("git", "-C", repo, "commit", "-q", "-F", f.Name())
 }
 
-// editMessage opens the draft in $EDITOR (vim if unset) and returns what was saved.
+// Editor is the editor koizumi opens things in: $EDITOR, nano when it is unset. One
+// answer for the commit draft and the Brewfile alike.
+func Editor() string {
+	if e := os.Getenv("EDITOR"); e != "" {
+		return e
+	}
+	return "nano"
+}
+
+// Edit opens files in Editor, on the terminal, and returns once it is closed. $EDITOR may
+// carry flags ("code --wait"), so it goes through the shell with the files as arguments.
+func Edit(files ...string) error {
+	args := append([]string{"-c", Editor() + ` "$@"`, "koizumi"}, files...)
+	if err := passthrough("sh", args...); err != nil {
+		return fmt.Errorf("editor: %w", err)
+	}
+	return nil
+}
+
+// editMessage opens the draft in Editor and returns what was saved.
 func editMessage(draft string) (string, error) {
 	f, err := os.CreateTemp("", "koizumi-commit-*.txt")
 	if err != nil {
@@ -228,12 +247,8 @@ func editMessage(draft string) (string, error) {
 		return "", err
 	}
 	f.Close()
-	editor := os.Getenv("EDITOR")
-	if editor == "" {
-		editor = "vim"
-	}
-	if err := passthrough("sh", "-c", editor+" \"$1\"", "koizumi", f.Name()); err != nil {
-		return "", fmt.Errorf("editor: %w", err)
+	if err := Edit(f.Name()); err != nil {
+		return "", err
 	}
 	out, err := os.ReadFile(f.Name())
 	return string(out), err

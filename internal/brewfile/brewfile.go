@@ -109,9 +109,47 @@ type Probe struct {
 	Source string   `json:"source"` // Brewfile
 	Status string   `json:"status"` // ok, drift, skipped, error
 	Note   string   `json:"note,omitempty"`
-	Fix    string   `json:"fix,omitempty"`
+	Fixes  []Fix    `json:"fixes,omitempty"`
 	Files  []string `json:"files"`
 	Diff   Diff     `json:"diff"`
+}
+
+// Fix is one way out of the drift: the situation it answers, as a question, and the
+// commands to run then. Missing and extra each get two, because a missing entry can mean
+// "install me" or "I was removed on purpose, drop me from the Brewfile", and only you know.
+type Fix struct {
+	When     string   `json:"when"`
+	Commands []string `json:"commands"`
+}
+
+// Fixes spells out the ways to resolve d, for the Brewfiles in files. Nothing when d is clean.
+func Fixes(d Diff, files []string) []Fix {
+	var fixes []Fix
+	if len(d.MissingFormulae)+len(d.MissingCasks)+len(d.MissingTaps) > 0 {
+		var bundle []string
+		for _, f := range files {
+			bundle = append(bundle, "brew bundle --no-upgrade --file="+f)
+		}
+		fixes = append(fixes,
+			Fix{"missing, and you still want it? reinstall it", bundle},
+			Fix{"missing because you removed it on purpose? take it out of the Brewfile", []string{"koizumi brew edit"}})
+	}
+	if len(d.ExtraFormulae)+len(d.ExtraCasks)+len(d.ExtraTaps) > 0 {
+		var remove []string
+		if len(d.ExtraFormulae) > 0 {
+			remove = append(remove, "brew uninstall "+strings.Join(d.ExtraFormulae, " "))
+		}
+		if len(d.ExtraCasks) > 0 {
+			remove = append(remove, "brew uninstall --cask "+strings.Join(d.ExtraCasks, " "))
+		}
+		if len(d.ExtraTaps) > 0 {
+			remove = append(remove, "brew untap "+strings.Join(d.ExtraTaps, " "))
+		}
+		fixes = append(fixes,
+			Fix{"extra, and you want to keep it? add it to the Brewfile", []string{"koizumi brew edit"}},
+			Fix{"extra, and you do not want it? remove it (koizumi never removes anything)", remove})
+	}
+	return fixes
 }
 
 // Check reads the Brewfiles, asks Homebrew what is installed, and compares.
@@ -150,17 +188,7 @@ func Check(files []string) Probe {
 	p.Status = "ok"
 	if p.Diff.Any() {
 		p.Status = "drift"
-		var fixes []string
-		// one line each; a line starting with "→ " is a command, the rest are facts
-		if len(p.Diff.MissingFormulae)+len(p.Diff.MissingCasks)+len(p.Diff.MissingTaps) > 0 {
-			for _, f := range files {
-				fixes = append(fixes, "→ brew bundle --no-upgrade --file="+f)
-			}
-		}
-		if len(p.Diff.ExtraFormulae)+len(p.Diff.ExtraCasks)+len(p.Diff.ExtraTaps) > 0 {
-			fixes = append(fixes, "extras: add them to the Brewfile, or brew uninstall <name>; koizumi never removes anything")
-		}
-		p.Fix = strings.Join(fixes, "\n")
+		p.Fixes = Fixes(p.Diff, files)
 	}
 	return p
 }

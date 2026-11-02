@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/kshannon/koizumi/internal/brewfile"
+	"github.com/kshannon/koizumi/internal/dotsync"
 	"github.com/spf13/cobra"
 )
 
@@ -25,9 +26,19 @@ Formulae are compared against what was installed on request, so a library
 that only came in as a dependency is never reported as extra. Taps and
 casks are compared too. App Store (mas) entries are not checked.
 
-Nothing is installed or removed. The fix for missing entries is
-"brew bundle --no-upgrade --file=<Brewfile>"; extras are yours to add to
-the Brewfile or uninstall.
+Nothing is installed or removed. Each kind of drift can mean two things,
+and only you know which, so both come with their command:
+
+  missing   you still want it         brew bundle --no-upgrade --file=<Brewfile>
+            you removed it on purpose take it out of the Brewfile: koizumi brew edit
+  extra     you want to keep it       add it to the Brewfile: koizumi brew edit
+            you do not want it        brew uninstall <name>
+
+The Brewfile is the source of truth: drop a line there first, then uninstall,
+and every other machine sees the app as extra and is told to uninstall it.
+
+  koizumi brew files   prints the Brewfile paths, one per line
+  koizumi brew edit    opens them in $EDITOR (nano if unset), then checks again
 
 --brewfile can be given more than once. The default is Brewfile.common plus
 this machine's own Brewfile.<hostname>, when that file exists, under
@@ -35,8 +46,39 @@ $DOTFILES/brew else ~/dev/dotfiles/brew.`,
 	RunE: runBrew,
 }
 
+var brewFilesCmd = &cobra.Command{
+	Use:   "files",
+	Short: "Print the Brewfile paths, one per line",
+	Long: `Prints the full path of every Brewfile koizumi brew would read, one per line,
+so they can be handed to another command: nano $(koizumi brew files).`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if jsonOut {
+			return json.NewEncoder(os.Stdout).Encode(brewfiles)
+		}
+		for _, f := range brewfiles {
+			fmt.Println(f)
+		}
+		return nil
+	},
+}
+
+var brewEditCmd = &cobra.Command{
+	Use:   "edit",
+	Short: "Open the Brewfiles in $EDITOR, then check again",
+	Long: `Opens every Brewfile koizumi brew would read in $EDITOR (nano if unset), all
+in one session, and runs the comparison once the editor closes, so the
+result of the edit is on screen straight away.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := dotsync.Edit(brewfiles...); err != nil {
+			return err
+		}
+		return runBrew(cmd, args)
+	},
+}
+
 func init() {
-	brewCmd.Flags().StringSliceVar(&brewfiles, "brewfile", defaultBrewfiles(), "Brewfile to check (repeatable)")
+	brewCmd.PersistentFlags().StringSliceVar(&brewfiles, "brewfile", defaultBrewfiles(), "Brewfile to check (repeatable)")
+	brewCmd.AddCommand(brewFilesCmd, brewEditCmd)
 }
 
 // defaultBrewfiles is Brewfile.common, plus brew/Brewfile.<hostname> when this machine has one.
@@ -96,12 +138,16 @@ func runBrew(cmd *cobra.Command, args []string) error {
 	}
 	for _, r := range rows {
 		for _, n := range r.names {
-			fmt.Printf("  %-8s %-8s %s\n", r.what, r.kind, n)
+			fmt.Printf("  %s %-8s %s\n", styleWarn.Render(fmt.Sprintf("%-8s", r.what)), r.kind, n)
 		}
 	}
-	for _, l := range strings.Split(p.Fix, "\n") {
-		if l != "" {
-			fmt.Println("  " + line(l))
+	// the ways out, each a question and its commands, set apart from the listing by a blank
+	// line so the two readings of "missing" and "extra" are easy to tell apart
+	for _, f := range p.Fixes {
+		fmt.Println()
+		fmt.Println("  " + choice(f.When))
+		for _, c := range f.Commands {
+			fmt.Println("  " + line("→ "+tildeIn(c)))
 		}
 	}
 	fmt.Println()

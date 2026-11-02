@@ -45,7 +45,7 @@ proposes ONE commit for all of them: a subject naming the areas touched
 ("Update zshrc, starship") and a body listing every file. Then:
 
   Enter   commit with that message and push
-  e       open the message in $EDITOR first (vim if unset)
+  e       open the message in $EDITOR first (nano if unset)
   n       stop; nothing is committed
 
 Without a terminal (a script, a cron job) it refuses instead, so nothing is

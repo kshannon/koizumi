@@ -12,9 +12,9 @@ koizumi looks at one machine and reports three things:
   Brewfile lists installed, and do the files in your home folder match what the repo says.
 
 It never installs or updates software. Where something needs doing, it prints the command
-to run. The one thing it does do is move the dotfiles: `pull` fetches the repo and applies
-it (chezmoi asks before overwriting anything), `push` pushes it, offering one commit for
-anything uncommitted first.
+to run. The only things it touches are the dotfiles: `pull` fetches the repo and applies it
+(chezmoi asks before overwriting anything), `push` pushes it, offering one commit for
+anything uncommitted first, and `brew edit` opens the Brewfile in your editor.
 
 ## Install
 
@@ -38,6 +38,8 @@ koizumi               # the dashboard: only what needs attention (--cached for t
 koizumi outdated      # what is behind: Homebrew, App Store, macOS, with the command to run
 koizumi dotfiles      # files in ~ vs the repo (chezmoi), and the repo vs its remote (git)
 koizumi brew          # Brewfile vs what is installed: missing and extra
+koizumi brew files    # the Brewfile paths, one per line
+koizumi brew edit     # open them in $EDITOR (nano if unset), then check again
 koizumi apps          # every app in /Applications and who updates it
 koizumi pull          # git pull --ff-only, then chezmoi apply (asks before overwriting)
 koizumi push          # git push; with uncommitted changes it drafts one commit and asks first
@@ -46,6 +48,21 @@ koizumi --help        # the full reference for every command
 ```
 
 `koizumi <command> --help` explains exactly what each command checks and how it decides.
+
+### Removing an app
+
+The Brewfile is the source of truth, so take the line out there first, then uninstall:
+
+```bash
+koizumi brew edit            # delete the line, save; koizumi shows the app as extra
+brew uninstall --cask <name> # or brew uninstall <name> for a formula
+koizumi push                 # so the other machines get the change
+```
+
+On each other machine, `koizumi pull` then `koizumi brew` lists it as extra, with the
+uninstall command. Done in the other order, uninstall first, `koizumi brew` reports it as
+missing and offers to reinstall it, because the Brewfile still asks for it. The report says
+so and gives both ways out, but editing first saves the detour.
 Apps that leave no trace of their updater (Microsoft AutoUpdate, Steam) go in
 `~/.config/koizumi/overrides`; `koizumi apps --help` shows the format.
 
