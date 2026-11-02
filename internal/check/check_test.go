@@ -141,10 +141,10 @@ func TestSectionsAlwaysShowEveryCategoryInAFixedOrder(t *testing.T) {
 	if !contains(s[1].Text, "117 behind") || !contains(strings.Join(s[1].Lines, "\n"), "Brewfile: 3 missing, 2 extra") {
 		t.Errorf("Homebrew section = %+v", s[1])
 	}
-	// what is behind is named on the line (first three, "+N more"), and the fix line is just
-	// the command: no "(koizumi outdated for the list)" aside
+	// what is behind is named on the line (first three, then "+N more"); a cut list says where
+	// the rest is, the way the apps line does, and the fix line is just the command.
 	// commands carry a leading arrow so the printer can tell them from facts
-	if !contains(s[1].Text, "117 behind: ") || !contains(s[1].Text, "+114 more") || s[1].Lines[0] != "→ brew upgrade" {
+	if !contains(s[1].Text, "117 behind: ") || !contains(s[1].Text, "+114 more (koizumi outdated)") || s[1].Lines[0] != "→ brew upgrade" {
 		t.Errorf("Homebrew section = %+v", s[1])
 	}
 	if !contains(strings.Join(s[1].Lines, "\n"), "→ koizumi brew") {
@@ -153,7 +153,7 @@ func TestSectionsAlwaysShowEveryCategoryInAFixedOrder(t *testing.T) {
 	as := Sections(Report{Outdated: []outdated.Probe{{Source: "App Store", Status: "outdated",
 		Items: []outdated.Item{{Name: "Keynote"}, {Name: "Numbers"}, {Name: "Pages"}}}}})[2]
 	if as.Text != "3 behind: Keynote, Numbers, Pages" || len(as.Lines) != 1 || as.Lines[0] != "→ mas upgrade" {
-		t.Errorf("App Store section = %+v", as)
+		t.Errorf("App Store section = %+v", as) // nothing cut, so no pointer: the line is the list
 	}
 	// a note reads as an aside in parentheses, never a middot
 	mac := Sections(Report{Outdated: []outdated.Probe{{Source: "macOS", Status: "ok", Note: "last checked 7h ago"}}})[0]

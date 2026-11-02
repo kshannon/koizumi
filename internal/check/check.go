@@ -396,12 +396,18 @@ func Load(path string) (Report, error) {
 	return r, json.Unmarshal(data, &r)
 }
 
+// names is the first max item names; when that cuts the list short it says where the whole
+// list is, since the dashboard only summarises and the versions live in koizumi outdated.
 func names(items []outdated.Item, max int) string {
 	var n []string
 	for _, it := range items {
 		n = append(n, it.Name)
 	}
-	return strings.Join(first(n, max), ", ")
+	s := strings.Join(first(n, max), ", ")
+	if len(n) > max {
+		s += " (koizumi outdated)"
+	}
+	return s
 }
 
 func first(s []string, max int) []string {

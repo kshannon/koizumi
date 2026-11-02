@@ -35,7 +35,7 @@ tells you when it is behind. A Homebrew tap will replace this once there is a ta
 
 ```bash
 koizumi               # the dashboard: only what needs attention (--cached for the last check)
-koizumi outdated      # what is behind: Homebrew, App Store, macOS, with the command to run
+koizumi outdated      # the full list of what is behind, with versions: Homebrew, App Store, macOS
 koizumi dotfiles      # files in ~ vs the repo (chezmoi), and the repo vs its remote (git)
 koizumi brew          # Brewfile vs what is installed: missing and extra
 koizumi brew files    # the Brewfile paths, one per line
